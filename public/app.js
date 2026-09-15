@@ -3867,40 +3867,49 @@ function renderVideos() {
     <div class="flex flex-col gap-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
         <div>
-          <h2 class="font-outfit font-black text-2xl uppercase tracking-tight text-white flex items-center gap-2">
-            <span>📹 Vídeoteca & Scouting</span>
-          </h2>
-          <p class="text-xs text-slate-400 mt-1">${teamName} - Grabaciones tácticas y análisis audiovisual</p>
+          <div class="flex items-center gap-3">
+            <h2 class="font-outfit font-extrabold text-xl sm:text-2xl text-white uppercase tracking-wider">
+              Vídeos y Análisis Táctico (${teamName})
+            </h2>
+            <span class="bg-club-red/20 text-club-red border border-club-red/30 font-outfit text-xs font-bold uppercase px-3 py-1 rounded-xl">
+              ${videos.length} Vídeos
+            </span>
+          </div>
+          <p class="text-xs text-[#94A3B8] mt-0.5">Repositorio de análisis táctico y scouting para el equipo.</p>
         </div>
-        <button onclick="openNewVideoModal()" class="px-4 py-2.5 rounded-xl bg-club-red hover:bg-club-red-hover text-white font-bold uppercase text-xs tracking-wider flex items-center gap-2 self-start sm:self-auto shadow-lg shadow-club-red/20 transition-all">
-          <span>+ Añadir Vídeo</span>
+        <button onclick="openNewVideoModal()" class="inline-flex items-center gap-2 font-outfit font-bold text-xs uppercase px-5 py-3 rounded-xl bg-club-red hover:bg-club-red-hover text-white transition-all shadow-lg shadow-club-red/20">
+          ➕ Añadir Vídeo
         </button>
       </div>
 
       ${videos.length === 0 ? `
-        <div class="bg-black/20 border border-white/5 rounded-2xl p-12 text-center">
-          <div class="text-4xl mb-3">🎬</div>
-          <h3 class="font-outfit font-bold text-white uppercase text-base mb-1">No hay vídeos registrados</h3>
-          <p class="text-xs text-slate-400 mb-4">Añade enlaces a partidos grabados, scouting del rival o análisis de jugadas.</p>
-          <button onclick="openNewVideoModal()" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold uppercase text-xs">
+        <div class="flex flex-col items-center justify-center gap-3 p-12 bg-[#161616] border border-dashed border-white/10 rounded-2xl text-center max-w-lg mx-auto w-full">
+          <span class="text-5xl">🎥</span>
+          <h3 class="font-outfit font-bold text-white uppercase tracking-wider text-sm mt-2">Sin vídeos para ${teamName}</h3>
+          <p class="text-xs text-[#94A3B8]">Añade enlaces de partidos y análisis de rivales.</p>
+          <button onclick="openNewVideoModal()" class="mt-2 px-4 py-2.5 rounded-lg bg-club-red text-white text-xs font-bold uppercase">
             Añadir primer vídeo
           </button>
         </div>
       ` : `
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           ${videos.map(v => `
-            <div class="bg-black/20 border border-white/5 rounded-2xl p-4 flex flex-col justify-between gap-3 hover:border-white/10 transition-all">
-              <div>
-                <div class="flex items-center justify-between gap-2 mb-2">
-                  <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-white/5 text-slate-300">${v.categoria || 'Vídeo'}</span>
-                  <span class="text-[10px] text-slate-500">${v.fecha || ''}</span>
+            <div class="bg-[#181818] border border-white/10 rounded-2xl p-5 flex flex-col justify-between shadow-xl hover:border-white/20 transition-all">
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/5 text-slate-400">${v.categoria || 'Táctico'}</span>
+                  <span class="text-xs text-[#94A3B8]">📅 ${v.fecha || 'Reciente'}</span>
                 </div>
-                <h4 class="font-outfit font-bold text-white text-sm mb-1">${v.titulo}</h4>
-                <p class="text-xs text-slate-400 line-clamp-2">${v.descripcion || 'Sin descripción adicional.'}</p>
+                <h3 class="font-outfit font-bold text-base text-white">${v.titulo}</h3>
+                <p class="text-xs text-[#94A3B8] line-clamp-2">${v.descripcion || 'Análisis táctico.'}</p>
+                ${v.url ? `
+                  <a href="${v.url}" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-club-red hover:underline font-bold mt-1">
+                    ▶️ Abrir Enlace de Vídeo
+                  </a>
+                ` : ''}
               </div>
-              <div class="flex items-center justify-between border-t border-white/5 pt-3 mt-1 text-xs">
-                ${v.url ? `<a href="${v.url}" target="_blank" class="text-club-red hover:underline font-bold flex items-center gap-1">Ver vídeo ↗</a>` : '<span class="text-slate-500">Sin URL</span>'}
-                <button onclick="deleteVideo('${v.id}')" class="text-rose-400 hover:text-rose-300">Eliminar</button>
+              <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-end">
+                <button onclick="deleteVideo('${v.id}')" class="text-xs text-rose-400 hover:text-rose-300">Eliminar</button>
               </div>
             </div>
           `).join('')}
