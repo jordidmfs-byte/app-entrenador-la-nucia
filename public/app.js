@@ -36,6 +36,14 @@ let boardCanvas = null;
 let boardCtx = null;
 let boardBackgroundImg = null;
 
+function saveStateToStorage() {
+  try {
+    localStorage.setItem('lanucia_app_state', JSON.stringify(appState));
+  } catch (e) {
+    console.warn('LocalStorage save error:', e);
+  }
+}
+
 // Initialize
 async function init() {
   currentView = 'dashboard';
@@ -58,16 +66,18 @@ async function init() {
 async function fetchState() {
   try {
     const cached = localStorage.getItem('lanucia_app_state');
+    let hasLocalData = false;
     if (cached) {
       try {
         const parsedCached = JSON.parse(cached);
         if (parsedCached && parsedCached.tasks && parsedCached.tasks.length > 0) {
           appState = parsedCached;
+          hasLocalData = true;
         }
       } catch (e) {}
     }
 
-    let loaded = false;
+    let loadedFromServer = false;
     try {
       const res = await fetch('/api/state');
       if (res.ok) {
@@ -75,37 +85,49 @@ async function fetchState() {
         if (contentType.includes('application/json')) {
           const serverState = await res.json();
           if (serverState && serverState.tasks && serverState.tasks.length > 0) {
-            appState = serverState;
-            loaded = true;
+            // If local state doesn't exist yet, populate from server
+            if (!hasLocalData) {
+              appState = serverState;
+              loadedFromServer = true;
+            }
           }
         }
       }
     } catch(err) {}
 
-    // Always load initial fallback to guarantee 50 tasks and squad rosters are present
-    try {
-      const resInit = await fetch('/initial_store.json');
-      if (resInit.ok) {
-        const initData = await resInit.json();
-        if (initData) {
-          if (!appState.tasks || appState.tasks.length < initData.tasks.length) {
-            appState.tasks = initData.tasks;
-          }
-          if (!appState.players) appState.players = { filial: [], juvenil: [] };
-          if (!appState.players.filial || appState.players.filial.length === 0) {
-            appState.players.filial = initData.players.filial || [];
-          }
-          if (!appState.players.juvenil || appState.players.juvenil.length === 0) {
-            appState.players.juvenil = initData.players.juvenil || [];
+    // Only load initial fallback if we have NO cached state and NO server state
+    if (!hasLocalData && !loadedFromServer) {
+      try {
+        const resInit = await fetch('/initial_store.json');
+        if (resInit.ok) {
+          const initData = await resInit.json();
+          if (initData) {
+            if (!appState.tasks || appState.tasks.length === 0) {
+              appState.tasks = initData.tasks || [];
+            }
+            if (!appState.players) appState.players = { filial: [], juvenil: [] };
+            if (!appState.players.filial || appState.players.filial.length === 0) {
+              appState.players.filial = initData.players.filial || [];
+            }
+            if (!appState.players.juvenil || appState.players.juvenil.length === 0) {
+              appState.players.juvenil = initData.players.juvenil || [];
+            }
+            if (!appState.sessions) appState.sessions = initData.sessions || { filial: [], juvenil: [] };
+            if (!appState.matches) appState.matches = initData.matches || { filial: [], juvenil: [] };
+            if (!appState.videos) appState.videos = initData.videos || { filial: [], juvenil: [] };
           }
         }
-      }
-    } catch(e) {}
+      } catch(e) {}
+    }
 
+    if (!appState.players) appState.players = { filial: [], juvenil: [] };
     if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
-    try {
-      localStorage.setItem('lanucia_app_state', JSON.stringify(appState));
-    } catch(e) {}
+    if (!appState.attendances) appState.attendances = { filial: {}, juvenil: {} };
+    if (!appState.sessions) appState.sessions = { filial: [], juvenil: [] };
+    if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
+    if (!appState.videos) appState.videos = { filial: [], juvenil: [] };
+
+    saveStateToStorage();
   } catch (err) {
     console.error('Error fetching state:', err);
   }
@@ -1261,23 +1283,21 @@ async function confirmDeleteTask(taskId, taskName) {
   if (!confirm(`¿Estás seguro de que deseas eliminar la tarea "${taskName || taskId}" del catálogo?`)) {
     return;
   }
+  if (!appState.tasks) appState.tasks = [];
+  appState.tasks = appState.tasks.filter(t => String(t.id) !== String(taskId));
+  saveStateToStorage();
+  closeModal();
+  showNotification('Tarea eliminada correctamente');
+  renderView();
+
   try {
-    const res = await fetch('/api/tasks', {
+    await fetch('/api/tasks', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: taskId })
     });
-    if (res.ok) {
-      await fetchState();
-      closeModal();
-      showNotification('Tarea eliminada correctamente');
-      renderView();
-    } else {
-      alert('Error al eliminar la tarea');
-    }
   } catch (err) {
-    console.error('Error deleting task:', err);
-    alert('Error al conectar con el servidor para eliminar la tarea');
+    console.error('Server sync error deleting task:', err);
   }
 }
 
@@ -2192,22 +2212,32 @@ async function handleSaveTaskWithBoard(e) {
 
   if (editId) {
     payload.id = editId;
+    if (!appState.tasks) appState.tasks = [];
+    const idx = appState.tasks.findIndex(t => String(t.id) === String(editId));
+    if (idx !== -1) {
+      appState.tasks[idx] = { ...appState.tasks[idx], ...payload };
+    } else {
+      appState.tasks.push(payload);
+    }
+  } else {
+    payload.id = Date.now();
+    if (!appState.tasks) appState.tasks = [];
+    appState.tasks.push(payload);
   }
 
+  saveStateToStorage();
+  closeModal();
+  showNotification(editId ? 'Tarea y pizarra actualizadas correctamente' : 'Tarea guardada con gráfico táctico interactivo');
+  renderView();
+
   try {
-    const res = await fetch('/api/tasks', {
+    await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (res.ok) {
-      await fetchState();
-      closeModal();
-      showNotification(editId ? 'Tarea y pizarra actualizadas correctamente' : 'Tarea guardada con gráfico táctico interactivo');
-      renderView();
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for task save:', err);
   }
 }
 
@@ -2470,29 +2500,33 @@ async function handleSavePlayer(e) {
   const team = appState.activeTeam || 'filial';
   const fotoData = document.getElementById('p-foto-data') ? document.getElementById('p-foto-data').value : '';
 
-  const payload = {
-    team,
-    nombre: document.getElementById('p-nombre').value,
-    apellidos: document.getElementById('p-apellidos').value,
+  const newPlayer = {
+    id: Date.now(),
+    nombre: (document.getElementById('p-nombre').value || '').trim(),
+    apellidos: (document.getElementById('p-apellidos').value || '').trim(),
     dorsal: parseInt(document.getElementById('p-dorsal').value) || 0,
     posicion: document.getElementById('p-posicion').value,
     estado: document.getElementById('p-estado').value,
     foto: fotoData
   };
+
+  if (!appState.players) appState.players = { filial: [], juvenil: [] };
+  if (!appState.players[team]) appState.players[team] = [];
+  appState.players[team].push(newPlayer);
+
+  saveStateToStorage();
+  closeModal();
+  showNotification('Jugador añadido con éxito');
+  renderView();
+
   try {
-    const res = await fetch('/api/players', {
+    await fetch('/api/players', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ team, ...newPlayer })
     });
-    if (res.ok) {
-      await fetchState();
-      closeModal();
-      showNotification('Jugador añadido con foto');
-      renderView();
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for add player:', err);
   }
 }
 
@@ -2501,49 +2535,63 @@ async function handleUpdatePlayer(e, id) {
   const team = appState.activeTeam || 'filial';
   const fotoData = document.getElementById('pe-foto-data') ? document.getElementById('pe-foto-data').value : '';
 
-  const payload = {
-    id,
-    team,
-    nombre: document.getElementById('pe-nombre').value,
-    apellidos: document.getElementById('pe-apellidos').value,
+  if (!appState.players) appState.players = { filial: [], juvenil: [] };
+  if (!appState.players[team]) appState.players[team] = [];
+
+  const idx = appState.players[team].findIndex(p => String(p.id) === String(id));
+  const updatedPlayer = {
+    id: id,
+    nombre: (document.getElementById('pe-nombre').value || '').trim(),
+    apellidos: (document.getElementById('pe-apellidos').value || '').trim(),
     dorsal: parseInt(document.getElementById('pe-dorsal').value) || 0,
     posicion: document.getElementById('pe-posicion').value,
     estado: document.getElementById('pe-estado').value,
     foto: fotoData
   };
+
+  if (idx !== -1) {
+    appState.players[team][idx] = { ...appState.players[team][idx], ...updatedPlayer };
+  } else {
+    appState.players[team].push(updatedPlayer);
+  }
+
+  saveStateToStorage();
+  closeModal();
+  showNotification('Jugador y foto actualizados');
+  renderView();
+
   try {
-    const res = await fetch('/api/players', {
+    await fetch('/api/players', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ team, ...updatedPlayer })
     });
-    if (res.ok) {
-      await fetchState();
-      closeModal();
-      showNotification('Jugador y foto actualizados');
-      renderView();
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for update player:', err);
   }
 }
 
 async function deletePlayer(id) {
   if (!confirm('¿Seguro que deseas eliminar este jugador?')) return;
   const team = appState.activeTeam || 'filial';
+
+  if (!appState.players) appState.players = { filial: [], juvenil: [] };
+  if (appState.players[team]) {
+    appState.players[team] = appState.players[team].filter(p => String(p.id) !== String(id));
+  }
+
+  saveStateToStorage();
+  showNotification('Jugador eliminado');
+  renderView();
+
   try {
-    const res = await fetch('/api/players', {
+    await fetch('/api/players', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, team })
     });
-    if (res.ok) {
-      await fetchState();
-      showNotification('Jugador eliminado');
-      renderView();
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for delete player:', err);
   }
 }
 
@@ -3148,19 +3196,34 @@ async function handleSaveSessionForm(e, editId = null) {
     tasks: flatTasks
   };
 
+  if (!appState.sessions) appState.sessions = { filial: [], juvenil: [] };
+  if (!appState.sessions[team]) appState.sessions[team] = [];
+
+  if (editId) {
+    payload.id = editId;
+    const idx = appState.sessions[team].findIndex(s => String(s.id) === String(editId));
+    if (idx !== -1) {
+      appState.sessions[team][idx] = { ...appState.sessions[team][idx], ...payload };
+    } else {
+      appState.sessions[team].push(payload);
+    }
+  } else {
+    payload.id = Date.now();
+    appState.sessions[team].push(payload);
+  }
+
+  saveStateToStorage();
+  showNotification(editId ? 'Sesión de entrenamiento actualizada con éxito' : 'Sesión de entrenamiento creada con éxito');
+  goToSessionSubView('index');
+
   try {
-    const res = await fetch('/api/sessions', {
+    await fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (res.ok) {
-      await fetchState();
-      showNotification(editId ? 'Sesión de entrenamiento actualizada con éxito' : 'Sesión de entrenamiento creada con éxito');
-      goToSessionSubView('index');
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for session save:', err);
   }
 }
 
@@ -3562,23 +3625,28 @@ function exportSessionToPDF() {
 async function deleteSession(id) {
   if (!confirm('¿Seguro que deseas eliminar esta sesión?')) return;
   const team = appState.activeTeam || 'filial';
+
+  if (!appState.sessions) appState.sessions = { filial: [], juvenil: [] };
+  if (appState.sessions[team]) {
+    appState.sessions[team] = appState.sessions[team].filter(s => String(s.id) !== String(id));
+  }
+
+  saveStateToStorage();
+  showNotification('Sesión eliminada');
+  if (sessionSubView === 'show' || sessionSubView === 'edit') {
+    goToSessionSubView('index');
+  } else {
+    renderView();
+  }
+
   try {
-    const res = await fetch('/api/sessions', {
+    await fetch('/api/sessions', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, team })
     });
-    if (res.ok) {
-      await fetchState();
-      showNotification('Sesión eliminada');
-      if (sessionSubView === 'show' || sessionSubView === 'edit') {
-        goToSessionSubView('index');
-      } else {
-        renderView();
-      }
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for delete session:', err);
   }
 }
 
@@ -3698,7 +3766,8 @@ function openNewMatchModal() {
 async function handleSaveMatch(e) {
   e.preventDefault();
   const team = appState.activeTeam || 'filial';
-  const payload = {
+  const newMatch = {
+    id: Date.now(),
     team,
     rival: document.getElementById('m-rival').value,
     fecha: document.getElementById('m-fecha').value,
@@ -3707,39 +3776,47 @@ async function handleSaveMatch(e) {
     localizacion: document.getElementById('m-localizacion').value
   };
 
+  if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
+  if (!appState.matches[team]) appState.matches[team] = [];
+  appState.matches[team].push(newMatch);
+
+  saveStateToStorage();
+  closeModal();
+  showNotification('Partido añadido al calendario');
+  renderView();
+
   try {
-    const res = await fetch('/api/matches', {
+    await fetch('/api/matches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(newMatch)
     });
-    if (res.ok) {
-      await fetchState();
-      closeModal();
-      showNotification('Partido añadido al calendario');
-      renderView();
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for match save:', err);
   }
 }
 
 async function deleteMatch(id) {
   if (!confirm('¿Seguro que deseas eliminar este partido?')) return;
   const team = appState.activeTeam || 'filial';
+
+  if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
+  if (appState.matches[team]) {
+    appState.matches[team] = appState.matches[team].filter(m => String(m.id) !== String(id));
+  }
+
+  saveStateToStorage();
+  showNotification('Partido eliminado');
+  renderView();
+
   try {
-    const res = await fetch('/api/matches', {
+    await fetch('/api/matches', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, team })
     });
-    if (res.ok) {
-      await fetchState();
-      showNotification('Partido eliminado');
-      renderView();
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for delete match:', err);
   }
 }
 
@@ -3749,55 +3826,46 @@ async function deleteMatch(id) {
 function renderVideos() {
   const team = appState.activeTeam || 'filial';
   const teamName = team === 'filial' ? 'Filial Sporting La Nucía' : 'Juvenil La Nucía FS';
-  const videos = appState.videos[team] || [];
+  const videos = (appState.videos && appState.videos[team]) ? appState.videos[team] : [];
 
   return `
     <div class="flex flex-col gap-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
         <div>
-          <div class="flex items-center gap-3">
-            <h2 class="font-outfit font-extrabold text-xl sm:text-2xl text-white uppercase tracking-wider">
-              Vídeos y Análisis Táctico (${teamName})
-            </h2>
-            <span class="bg-club-red/20 text-club-red border border-club-red/30 font-outfit text-xs font-bold uppercase px-3 py-1 rounded-xl">
-              ${videos.length} Vídeos
-            </span>
-          </div>
-          <p class="text-xs text-[#94A3B8] mt-0.5">Repositorio de análisis táctico y scouting para el equipo.</p>
+          <h2 class="font-outfit font-black text-2xl uppercase tracking-tight text-white flex items-center gap-2">
+            <span>📹 Vídeoteca & Scouting</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">${teamName} - Grabaciones tácticas y análisis audiovisual</p>
         </div>
-        <button onclick="openNewVideoModal()" class="inline-flex items-center gap-2 font-outfit font-bold text-xs uppercase px-5 py-3 rounded-xl bg-club-red hover:bg-club-red-hover text-white transition-all shadow-lg shadow-club-red/20">
-          ➕ Añadir Vídeo
+        <button onclick="openNewVideoModal()" class="px-4 py-2.5 rounded-xl bg-club-red hover:bg-club-red-hover text-white font-bold uppercase text-xs tracking-wider flex items-center gap-2 self-start sm:self-auto shadow-lg shadow-club-red/20 transition-all">
+          <span>+ Añadir Vídeo</span>
         </button>
       </div>
 
       ${videos.length === 0 ? `
-        <div class="flex flex-col items-center justify-center gap-3 p-12 bg-[#161616] border border-dashed border-white/10 rounded-2xl text-center max-w-lg mx-auto w-full">
-          <span class="text-5xl">🎥</span>
-          <h3 class="font-outfit font-bold text-white uppercase tracking-wider text-sm mt-2">Sin vídeos para ${teamName}</h3>
-          <p class="text-xs text-[#94A3B8]">Añade enlaces de partidos y análisis de rivales.</p>
-          <button onclick="openNewVideoModal()" class="mt-2 px-4 py-2.5 rounded-lg bg-club-red text-white text-xs font-bold uppercase">
+        <div class="bg-black/20 border border-white/5 rounded-2xl p-12 text-center">
+          <div class="text-4xl mb-3">🎬</div>
+          <h3 class="font-outfit font-bold text-white uppercase text-base mb-1">No hay vídeos registrados</h3>
+          <p class="text-xs text-slate-400 mb-4">Añade enlaces a partidos grabados, scouting del rival o análisis de jugadas.</p>
+          <button onclick="openNewVideoModal()" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold uppercase text-xs">
             Añadir primer vídeo
           </button>
         </div>
       ` : `
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           ${videos.map(v => `
-            <div class="bg-[#181818] border border-white/10 rounded-2xl p-5 flex flex-col justify-between shadow-xl hover:border-white/20 transition-all">
-              <div class="flex flex-col gap-3">
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/5 text-slate-400">${v.categoria || 'Táctico'}</span>
-                  <span class="text-xs text-[#94A3B8]">📅 ${v.fecha || 'Reciente'}</span>
+            <div class="bg-black/20 border border-white/5 rounded-2xl p-4 flex flex-col justify-between gap-3 hover:border-white/10 transition-all">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-2">
+                  <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-white/5 text-slate-300">${v.categoria || 'Vídeo'}</span>
+                  <span class="text-[10px] text-slate-500">${v.fecha || ''}</span>
                 </div>
-                <h3 class="font-outfit font-bold text-base text-white">${v.titulo}</h3>
-                <p class="text-xs text-[#94A3B8] line-clamp-2">${v.descripcion || 'Análisis táctico.'}</p>
-                ${v.url ? `
-                  <a href="${v.url}" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-club-red hover:underline font-bold mt-1">
-                    ▶️ Abrir Enlace de Vídeo
-                  </a>
-                ` : ''}
+                <h4 class="font-outfit font-bold text-white text-sm mb-1">${v.titulo}</h4>
+                <p class="text-xs text-slate-400 line-clamp-2">${v.descripcion || 'Sin descripción adicional.'}</p>
               </div>
-              <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-end">
-                <button onclick="deleteVideo('${v.id}')" class="text-xs text-rose-400 hover:text-rose-300">Eliminar</button>
+              <div class="flex items-center justify-between border-t border-white/5 pt-3 mt-1 text-xs">
+                ${v.url ? `<a href="${v.url}" target="_blank" class="text-club-red hover:underline font-bold flex items-center gap-1">Ver vídeo ↗</a>` : '<span class="text-slate-500">Sin URL</span>'}
+                <button onclick="deleteVideo('${v.id}')" class="text-rose-400 hover:text-rose-300">Eliminar</button>
               </div>
             </div>
           `).join('')}
@@ -3847,7 +3915,8 @@ function openNewVideoModal() {
 async function handleSaveVideo(e) {
   e.preventDefault();
   const team = appState.activeTeam || 'filial';
-  const payload = {
+  const newVideo = {
+    id: Date.now(),
     team,
     titulo: document.getElementById('v-titulo').value,
     categoria: document.getElementById('v-categoria').value,
@@ -3855,39 +3924,47 @@ async function handleSaveVideo(e) {
     descripcion: document.getElementById('v-descripcion').value
   };
 
+  if (!appState.videos) appState.videos = { filial: [], juvenil: [] };
+  if (!appState.videos[team]) appState.videos[team] = [];
+  appState.videos[team].push(newVideo);
+
+  saveStateToStorage();
+  closeModal();
+  showNotification('Vídeo guardado con éxito');
+  renderView();
+
   try {
-    const res = await fetch('/api/videos', {
+    await fetch('/api/videos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(newVideo)
     });
-    if (res.ok) {
-      await fetchState();
-      closeModal();
-      showNotification('Vídeo guardado con éxito');
-      renderView();
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for video save:', err);
   }
 }
 
 async function deleteVideo(id) {
   if (!confirm('¿Seguro que deseas eliminar este vídeo?')) return;
   const team = appState.activeTeam || 'filial';
+
+  if (!appState.videos) appState.videos = { filial: [], juvenil: [] };
+  if (appState.videos[team]) {
+    appState.videos[team] = appState.videos[team].filter(v => String(v.id) !== String(id));
+  }
+
+  saveStateToStorage();
+  showNotification('Vídeo eliminado');
+  renderView();
+
   try {
-    const res = await fetch('/api/videos', {
+    await fetch('/api/videos', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, team })
     });
-    if (res.ok) {
-      await fetchState();
-      showNotification('Vídeo eliminado');
-      renderView();
-    }
   } catch(err) {
-    console.error(err);
+    console.error('Server sync error for delete video:', err);
   }
 }
 
