@@ -1,16 +1,1 @@
-﻿{
-  "version": 2,
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.js"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/"
-    }
-  ]
-}
+{"version": 2, "rewrites": [{"source": "/api/(.*)", "destination": "/api/index.js"}, {"source": "/(.*)", "destination": "/public/$1"}]}
