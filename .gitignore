@@ -1,0 +1,8 @@
+﻿node_modules/
+.vercel/
+cloudflared.exe
+ngrok.exe
+extracted_50_tasks.json
+*.log
+scratch/
+.system_generated/

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- Mobile & PWA Optimization -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="La Nucía FS">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#121212">
+  <title>La Nucía Fútbol Sala - Panel del Entrenador</title>
+  <meta name="description" content="Gestor del Modelo de Juego y Pizarra Táctica de La Nucía Fútbol Sala - Filial y Juvenil. Versión optimizada para Móvil, Tablet y Escritorio.">
+  <link rel="apple-touch-icon" href="/escudo.jpg">
+  <link rel="icon" type="image/jpeg" href="/escudo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'club-red': '#E30613',
+            'club-red-hover': '#B3000C',
+            'dark-bg': '#121212',
+            'dark-card': '#161616',
+            'dark-glass': 'rgba(22, 22, 22, 0.85)',
+          },
+          fontFamily: {
+            outfit: ['Outfit', 'sans-serif'],
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Safe-area insets for modern mobile devices (iPhone notch & gesture bar) */
+    body {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .safe-bottom-nav {
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .card-quick-actions {
+      border: 1px solid rgba(227, 6, 19, 0.35) !important;
+      box-shadow: 0 10px 20px -3px rgba(227, 6, 19, 0.08) !important;
+    }
+    .card-quick-header {
+      border-bottom: 1px solid rgba(227, 6, 19, 0.25) !important;
+      background: linear-gradient(to right, rgba(227, 6, 19, 0.18), transparent) !important;
+    }
+    .badge-quick-bolt {
+      background-color: rgba(227, 6, 19, 0.2) !important;
+      border: 1px solid rgba(227, 6, 19, 0.4) !important;
+      color: rgb(252, 165, 165) !important;
+    }
+    .qa-btn { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important; }
+    .qa-btn:hover .qa-arrow { transform: translateX(3px) !important; }
+    .qa-session { border: 1px solid rgba(139, 92, 246, 0.25) !important; background-color: rgba(139, 92, 246, 0.04) !important; }
+    .qa-session:hover { border-color: rgba(139, 92, 246, 0.55) !important; background-color: rgba(139, 92, 246, 0.1) !important; }
+    .qa-task { border: 1px solid rgba(20, 184, 166, 0.25) !important; background-color: rgba(20, 184, 166, 0.04) !important; }
+    .qa-task:hover { border-color: rgba(20, 184, 166, 0.55) !important; background-color: rgba(20, 184, 166, 0.1) !important; }
+    .qa-players { border: 1px solid rgba(59, 130, 246, 0.25) !important; background-color: rgba(59, 130, 246, 0.04) !important; }
+    .qa-players:hover { border-color: rgba(59, 130, 246, 0.55) !important; background-color: rgba(59, 130, 246, 0.1) !important; }
+    .qa-attendance { border: 1px solid rgba(245, 158, 11, 0.25) !important; background-color: rgba(245, 158, 11, 0.04) !important; }
+    .qa-attendance:hover { border-color: rgba(245, 158, 11, 0.55) !important; background-color: rgba(245, 158, 11, 0.1) !important; }
+    .qa-match { border: 1px solid rgba(239, 68, 68, 0.25) !important; background-color: rgba(239, 68, 68, 0.04) !important; }
+    .qa-match:hover { border-color: rgba(239, 68, 68, 0.55) !important; background-color: rgba(239, 68, 68, 0.1) !important; }
+  </style>
+</head>
+<body class="bg-[#121212] text-[#F8FAFC] font-sans min-h-screen flex flex-col antialiased selection:bg-club-red selection:text-white pb-20 md:pb-0">
+
+  <!-- Background Watermark Shield -->
+  <div class="fixed inset-0 pointer-events-none opacity-[0.025] select-none" style="z-index: -10;">
+    <img src="/escudo.jpg" alt="Escudo La Nucía FS" class="w-full h-full object-cover">
+  </div>
+
+  <!-- Header / Navbar -->
+  <header class="sticky top-0 z-40 bg-[#121212]/95 backdrop-blur-md border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
+      
+      <!-- Brand & Coach Badge -->
+      <div class="flex items-center gap-2 sm:gap-4 cursor-pointer" onclick="navigate('dashboard')">
+        <div class="flex items-center justify-center bg-[#1a1a1a] w-10 h-10 sm:w-12 sm:h-12 rounded-xl border border-white/10 overflow-hidden shadow-md hover:border-club-red/50 transition-colors flex-shrink-0">
+          <img src="/escudo.jpg" alt="Escudo La Nucía FS" class="w-full h-full object-contain p-0.5 sm:p-1">
+        </div>
+        <div class="flex flex-col items-center text-center">
+          <h1 class="font-outfit font-extrabold text-sm sm:text-base lg:text-lg tracking-wide uppercase text-white leading-tight whitespace-nowrap">
+            La Nucía <span class="text-club-red">Fútbol Sala</span>
+          </h1>
+          <p class="font-outfit text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mt-0.5 text-center w-full">
+            Panel del <span class="text-club-red font-black">Entrenador</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Action / QR Tablet Connect & Team Switcher -->
+      <div class="flex items-center gap-1.5 sm:gap-3">
+        <!-- Team Switcher (Filial vs Juvenil) -->
+        <div class="flex items-center bg-black/60 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-white/10 shadow-inner">
+          <button id="btn-team-filial" onclick="setTeam('filial')" class="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-outfit text-[11px] sm:text-xs font-extrabold uppercase transition-all duration-200">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            <span>Filial</span>
+          </button>
+          <button id="btn-team-juvenil" onclick="setTeam('juvenil')" class="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-outfit text-[11px] sm:text-xs font-extrabold uppercase transition-all duration-200">
+            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+            <span>Juvenil</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Bar (Visible en móvil, tablet y escritorio con scroll horizontal suave) -->
+      <nav class="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-full no-scrollbar py-1">
+        <button onclick="navigate('dashboard')" id="nav-dashboard" class="nav-link font-outfit font-semibold text-xs uppercase px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all text-[#94A3B8] hover:text-white hover:bg-white/5 whitespace-nowrap">
+          🏠 Inicio
+        </button>
+        <button onclick="navigate('sessions')" id="nav-sessions" class="nav-link font-outfit font-semibold text-xs uppercase px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all text-[#94A3B8] hover:text-white hover:bg-white/5 whitespace-nowrap">
+          📋 Sesiones
+        </button>
+        <button onclick="navigate('tasks')" id="nav-tasks" class="nav-link font-outfit font-semibold text-xs uppercase px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all text-[#94A3B8] hover:text-white hover:bg-white/5 whitespace-nowrap">
+          ⚡ Tareas
+        </button>
+        <button onclick="navigate('players')" id="nav-players" class="nav-link font-outfit font-semibold text-xs uppercase px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all text-[#94A3B8] hover:text-white hover:bg-white/5 whitespace-nowrap">
+          👥 Jugadores
+        </button>
+        <button onclick="navigate('attendance')" id="nav-attendance" class="nav-link font-outfit font-semibold text-xs uppercase px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all text-[#94A3B8] hover:text-white hover:bg-white/5 whitespace-nowrap">
+          📊 Asistencia
+        </button>
+        <button onclick="navigate('matches')" id="nav-matches" class="nav-link font-outfit font-semibold text-xs uppercase px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all text-[#94A3B8] hover:text-white hover:bg-white/5 whitespace-nowrap">
+          ⚽ Partidos
+        </button>
+        <button onclick="navigate('videos')" id="nav-videos" class="nav-link font-outfit font-semibold text-xs uppercase px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all text-[#94A3B8] hover:text-white hover:bg-white/5 whitespace-nowrap">
+          🎥 Vídeos
+        </button>
+      </nav>
+    </div>
+
+    <!-- Mobile Top Dropdown Drawer for secondary links -->
+    <div id="mobile-nav" class="hidden lg:hidden border-t border-white/10 bg-[#121212]/98 px-4 py-3 flex flex-col gap-2 shadow-2xl backdrop-blur-xl animate-fadeIn">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 py-1">Secciones del Entrenador</div>
+      <button onclick="navigate('dashboard')" class="text-left font-outfit font-bold text-xs uppercase py-2.5 px-3 rounded-xl text-slate-200 hover:bg-white/5 flex items-center gap-3">
+        <span>🏠</span> Panel Principal (Dashboard)
+      </button>
+      <button onclick="navigate('sessions')" class="text-left font-outfit font-bold text-xs uppercase py-2.5 px-3 rounded-xl text-slate-200 hover:bg-white/5 flex items-center gap-3">
+        <span>📋</span> Sesiones de Entrenamiento
+      </button>
+      <button onclick="navigate('tasks')" class="text-left font-outfit font-bold text-xs uppercase py-2.5 px-3 rounded-xl text-slate-200 hover:bg-white/5 flex items-center gap-3">
+        <span>⚡</span> Tareas del Modelo (50)
+      </button>
+      <button onclick="navigate('players')" class="text-left font-outfit font-bold text-xs uppercase py-2.5 px-3 rounded-xl text-slate-200 hover:bg-white/5 flex items-center gap-3">
+        <span>👥</span> Plantilla Jugadores
+      </button>
+      <button onclick="navigate('attendance')" class="text-left font-outfit font-bold text-xs uppercase py-2.5 px-3 rounded-xl text-slate-200 hover:bg-white/5 flex items-center gap-3">
+        <span>📊</span> Control de Asistencia & Valoración
+      </button>
+      <button onclick="navigate('matches')" class="text-left font-outfit font-bold text-xs uppercase py-2.5 px-3 rounded-xl text-slate-200 hover:bg-white/5 flex items-center gap-3">
+        <span>⚽</span> Partidos
+      </button>
+      <button onclick="navigate('videos')" class="text-left font-outfit font-bold text-xs uppercase py-2.5 px-3 rounded-xl text-slate-200 hover:bg-white/5 flex items-center gap-3">
+        <span>🎥</span> Vídeos de Análisis
+      </button>
+      <div class="border-t border-white/10 my-1"></div>
+      <button onclick="openMobileConnectModal()" class="text-left font-outfit font-bold text-xs uppercase py-2.5 px-3 rounded-xl text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-3">
+        <span>📲</span> Código QR para Móvil / Tablet
+      </button>
+      <button onclick="exportData()" class="text-left font-outfit font-bold text-xs uppercase py-2.5 px-3 rounded-xl text-slate-400 hover:bg-white/5 flex items-center gap-3">
+        <span>💾</span> Exportar Copia de Seguridad
+      </button>
+    </div>
+  </header>
+
+  <!-- Notification Banner -->
+  <div id="notification-banner" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 hidden">
+    <div id="notification-content" class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl flex items-center justify-between text-sm shadow-lg">
+      <div class="flex items-center gap-3">
+        <span id="notification-icon">⚡</span>
+        <span id="notification-text">Operación completada con éxito</span>
+      </div>
+      <button onclick="dismissNotification()" class="text-emerald-400/60 hover:text-emerald-300 text-xs">✕</button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main id="app-view" class="flex-grow max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-8 mb-12 md:mb-0">
+    <!-- Dynamic View Injected Here -->
+  </main>
+
+  <!-- Native Mobile Bottom Navigation Bar (Optimized for Smartphones & Tablets) -->
+  <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#121212]/95 backdrop-blur-xl border-t border-white/10 safe-bottom-nav px-2 py-1 flex items-center justify-around shadow-2xl">
+    <button onclick="navigate('dashboard')" id="bnav-dashboard" class="flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all text-club-red">
+      <span class="text-lg leading-none">🏠</span>
+      <span class="font-outfit text-[10px] font-bold uppercase mt-1 tracking-tight">Inicio</span>
+    </button>
+    <button onclick="navigate('sessions')" id="bnav-sessions" class="flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all text-slate-400 hover:text-white">
+      <span class="text-lg leading-none">📋</span>
+      <span class="font-outfit text-[10px] font-bold uppercase mt-1 tracking-tight">Sesiones</span>
+    </button>
+    <button onclick="navigate('tasks')" id="bnav-tasks" class="flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all text-slate-400 hover:text-white">
+      <span class="text-lg leading-none">⚡</span>
+      <span class="font-outfit text-[10px] font-bold uppercase mt-1 tracking-tight">Tareas</span>
+    </button>
+    <button onclick="navigate('players')" id="bnav-players" class="flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all text-slate-400 hover:text-white">
+      <span class="text-lg leading-none">👥</span>
+      <span class="font-outfit text-[10px] font-bold uppercase mt-1 tracking-tight">Plantilla</span>
+    </button>
+    <button onclick="navigate('attendance')" id="bnav-attendance" class="flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all text-slate-400 hover:text-white">
+      <span class="text-lg leading-none">📊</span>
+      <span class="font-outfit text-[10px] font-bold uppercase mt-1 tracking-tight">Asistencia</span>
+    </button>
+    <button onclick="toggleMobileNav()" class="flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all text-slate-400 hover:text-white">
+      <span class="text-lg leading-none">☰</span>
+      <span class="font-outfit text-[10px] font-bold uppercase mt-1 tracking-tight">Más</span>
+    </button>
+  </nav>
+
+  <!-- Modal Container -->
+  <div id="modal-container" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div id="modal-content" class="bg-[#161616] border border-white/10 rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl relative my-auto max-h-[92vh] overflow-y-auto">
+      <!-- Injected modal content -->
+    </div>
+  </div>
+
+  <!-- Footer (Visible on desktop/tablets) -->
+  <footer class="bg-[#121212]/60 border-t border-white/10 py-6 text-[#94A3B8] text-xs">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+      <p>&copy; 2026 La Nucía Fútbol Sala. Panel del Entrenador (Filial & Juvenil) - Todos los derechos reservados.</p>
+      <div class="flex items-center justify-center gap-3 text-xs flex-wrap">
+        <span class="text-emerald-400 font-semibold">● Sistema en línea (Puerto 3050)</span>
+        <span>·</span>
+        <button onclick="openMobileConnectModal()" class="text-blue-400 hover:underline flex items-center gap-1">🌐 Compartir App (Enlace / QR)</button>
+        <span>·</span>
+        <button onclick="exportData()" class="hover:text-white transition-colors">💾 Exportar Datos</button>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/html2pdf.bundle.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
