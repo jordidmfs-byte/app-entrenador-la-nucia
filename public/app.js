@@ -926,7 +926,7 @@ function renderAttendance() {
             <button type="button" onclick="navigate('dashboard')" class="font-outfit font-bold text-xs uppercase px-6 py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-[#94A3B8] transition-colors">
               Ir a Inicio
             </button>
-            <button type="submit" class="inline-flex items-center gap-2 font-outfit font-bold text-xs uppercase px-8 py-3.5 rounded-xl bg-club-red hover:bg-club-red-hover text-white transition-all shadow-lg shadow-club-red/20">
+            <button type="submit" onclick="handleSaveAttendance(event)" class="cursor-pointer inline-flex items-center gap-2 font-outfit font-bold text-xs uppercase px-8 py-3.5 rounded-xl bg-club-red hover:bg-club-red-hover text-white transition-all shadow-lg shadow-club-red/20 active:scale-95">
               💾 Guardar Asistencia y Valoraciones
             </button>
           </div>
@@ -974,7 +974,7 @@ function attachAttendanceEvents() {
 }
 
 async function handleSaveAttendance(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
   const team = appState.activeTeam || 'filial';
   const attendancePayload = {};
   const ratingPayload = {};
@@ -993,8 +993,31 @@ async function handleSaveAttendance(e) {
     ratingPayload[pid][date] = sel.value;
   });
 
+  // 1. Guardar de inmediato en el estado local de la aplicación
+  if (!appState.attendances) appState.attendances = { filial: {}, juvenil: {} };
+  if (!appState.attendances[team]) appState.attendances[team] = {};
+  if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
+  if (!appState.ratings[team]) appState.ratings[team] = {};
+
+  for (const pid in attendancePayload) {
+    if (!appState.attendances[team][pid]) appState.attendances[team][pid] = {};
+    Object.assign(appState.attendances[team][pid], attendancePayload[pid]);
+  }
+  for (const pid in ratingPayload) {
+    if (!appState.ratings[team][pid]) appState.ratings[team][pid] = {};
+    Object.assign(appState.ratings[team][pid], ratingPayload[pid]);
+  }
+
   try {
-    const res = await fetch('/api/attendance', {
+    localStorage.setItem('lanucia_app_state', JSON.stringify(appState));
+  } catch(e) {}
+
+  showNotification('Asistencias y valoraciones guardadas correctamente para la semana seleccionada.');
+  renderView();
+
+  // 2. Sincronizar con el servidor en segundo plano si está disponible
+  try {
+    await fetch('/api/attendance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1004,13 +1027,8 @@ async function handleSaveAttendance(e) {
         rating: ratingPayload
       })
     });
-    if (res.ok) {
-      await fetchState();
-      showNotification('Asistencias y valoraciones guardadas correctamente para la semana seleccionada.');
-      renderView();
-    }
   } catch(err) {
-    console.error('Error saving attendance:', err);
+    console.warn('Sync notice:', err);
   }
 }
 
