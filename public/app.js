@@ -3712,7 +3712,10 @@ function renderMatches() {
                 ` : ''}
               </div>
               <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
-                <button onclick="deleteMatch('${m.id}')" class="text-rose-400 hover:text-rose-300">Eliminar</button>
+                <div class="flex items-center gap-3">
+                  <button onclick="editMatch('${m.id}')" class="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1">✏️ Editar</button>
+                  <button onclick="deleteMatch('${m.id}')" class="text-rose-400 hover:text-rose-300 flex items-center gap-1">🗑️ Eliminar</button>
+                </div>
                 <span class="text-slate-400 font-bold uppercase text-[10px]">La Nucía FS</span>
               </div>
             </div>
@@ -3724,40 +3727,59 @@ function renderMatches() {
 }
 
 function openNewMatchModal() {
+  openMatchModal(null);
+}
+
+function editMatch(id) {
+  const team = appState.activeTeam || 'filial';
+  const matches = appState.matches[team] || [];
+  const match = matches.find(m => String(m.id) === String(id));
+  if (match) {
+    openMatchModal(match);
+  }
+}
+
+function openMatchModal(matchToEdit = null) {
   const team = appState.activeTeam || 'filial';
   const today = new Date().toISOString().split('T')[0];
+  const isEdit = !!matchToEdit;
 
   openModal(`
     <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-      <h3 class="font-outfit font-extrabold text-lg text-white uppercase">Añadir Partido (${team.toUpperCase()})</h3>
+      <h3 class="font-outfit font-extrabold text-lg text-white uppercase">${isEdit ? 'Editar Partido' : 'Añadir Partido'} (${team.toUpperCase()})</h3>
       <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
     </div>
     <form onsubmit="handleSaveMatch(event)" class="flex flex-col gap-3 text-xs">
+      <input type="hidden" id="m-id" value="${isEdit ? matchToEdit.id : ''}">
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Equipo Rival</label>
-        <input type="text" id="m-rival" required placeholder="Ej: CD Calpe Futsal" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+        <input type="text" id="m-rival" required placeholder="Ej: CD Calpe Futsal" value="${isEdit ? (matchToEdit.rival || '') : ''}" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
           <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Fecha del partido</label>
-          <input type="date" id="m-fecha" value="${today}" required class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+          <input type="date" id="m-fecha" value="${isEdit ? (matchToEdit.fecha || today) : today}" required class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
         </div>
         <div>
           <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Hora</label>
-          <input type="time" id="m-hora" value="18:00" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+          <input type="time" id="m-hora" value="${isEdit ? (matchToEdit.hora || '18:00') : '18:00'}" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
         </div>
       </div>
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Competición / Categoría</label>
-        <input type="text" id="m-competicion" value="Liga Regular" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+        <input type="text" id="m-competicion" value="${isEdit ? (matchToEdit.competicion || 'Liga Regular') : 'Liga Regular'}" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
       </div>
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Pabellón / Localización</label>
-        <input type="text" id="m-localizacion" value="Pabellón Camilo Cano (La Nucía)" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+        <input type="text" id="m-localizacion" value="${isEdit ? (matchToEdit.localizacion || 'Pabellón Camilo Cano (La Nucía)') : 'Pabellón Camilo Cano (La Nucía)'}" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+      </div>
+      <div>
+        <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Resultado (Opcional)</label>
+        <input type="text" id="m-resultado" placeholder="Ej: 4 - 2" value="${isEdit ? (matchToEdit.resultado || '') : ''}" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
       </div>
       <div class="flex justify-end gap-2 mt-2">
         <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-white/5 text-slate-400 hover:text-white">Cancelar</button>
-        <button type="submit" class="px-5 py-2 rounded-xl bg-club-red text-white font-bold uppercase text-xs">Guardar Partido</button>
+        <button type="submit" class="px-5 py-2 rounded-xl bg-club-red text-white font-bold uppercase text-xs">${isEdit ? 'Guardar Cambios' : 'Guardar Partido'}</button>
       </div>
     </form>
   `);
@@ -3766,30 +3788,43 @@ function openNewMatchModal() {
 async function handleSaveMatch(e) {
   e.preventDefault();
   const team = appState.activeTeam || 'filial';
-  const newMatch = {
-    id: Date.now(),
+  const editId = document.getElementById('m-id') ? document.getElementById('m-id').value : '';
+
+  const matchData = {
+    id: editId || Date.now(),
     team,
     rival: document.getElementById('m-rival').value,
     fecha: document.getElementById('m-fecha').value,
     hora: document.getElementById('m-hora').value,
     competicion: document.getElementById('m-competicion').value,
-    localizacion: document.getElementById('m-localizacion').value
+    localizacion: document.getElementById('m-localizacion').value,
+    resultado: document.getElementById('m-resultado') ? document.getElementById('m-resultado').value : ''
   };
 
   if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
   if (!appState.matches[team]) appState.matches[team] = [];
-  appState.matches[team].push(newMatch);
+
+  if (editId) {
+    const idx = appState.matches[team].findIndex(m => String(m.id) === String(editId));
+    if (idx !== -1) {
+      appState.matches[team][idx] = { ...appState.matches[team][idx], ...matchData };
+    } else {
+      appState.matches[team].push(matchData);
+    }
+  } else {
+    appState.matches[team].push(matchData);
+  }
 
   saveStateToStorage();
   closeModal();
-  showNotification('Partido añadido al calendario');
+  showNotification(editId ? 'Partido actualizado' : 'Partido añadido al calendario');
   renderView();
 
   try {
     await fetch('/api/matches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newMatch)
+      body: JSON.stringify(matchData)
     });
   } catch(err) {
     console.error('Server sync error for match save:', err);
