@@ -1092,9 +1092,7 @@ async function handleSaveAttendance(e) {
     Object.assign(appState.ratings[team][pid], ratingPayload[pid]);
   }
 
-  try {
-    localStorage.setItem('lanucia_app_state', JSON.stringify(appState));
-  } catch(e) {}
+  saveStateToStorage();
 
   showNotification('Asistencias y valoraciones guardadas correctamente para la semana seleccionada.');
   renderView();

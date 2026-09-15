@@ -216,11 +216,24 @@ module.exports = async (req, res) => {
 
       if (route === 'attendance' && req.method === 'POST') {
         const team = parsed.team || 'filial';
+        if (!store.attendances) store.attendances = { filial: {}, juvenil: {} };
         if (!store.attendances[team]) store.attendances[team] = {};
-        if (parsed.date) {
-          store.attendances[team][parsed.date] = parsed.records || {};
-          await saveStore(store);
+        if (!store.ratings) store.ratings = { filial: {}, juvenil: {} };
+        if (!store.ratings[team]) store.ratings[team] = {};
+
+        if (parsed.attendance) {
+          for (const pid in parsed.attendance) {
+            if (!store.attendances[team][pid]) store.attendances[team][pid] = {};
+            Object.assign(store.attendances[team][pid], parsed.attendance[pid]);
+          }
         }
+        if (parsed.rating) {
+          for (const pid in parsed.rating) {
+            if (!store.ratings[team][pid]) store.ratings[team][pid] = {};
+            Object.assign(store.ratings[team][pid], parsed.rating[pid]);
+          }
+        }
+        await saveStore(store);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
         return;
