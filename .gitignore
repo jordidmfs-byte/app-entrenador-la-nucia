@@ -6,3 +6,4 @@ extracted_50_tasks.json
 *.log
 scratch/
 .system_generated/
+.vercel

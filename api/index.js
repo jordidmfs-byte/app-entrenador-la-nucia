@@ -2,46 +2,39 @@
 const path = require('path');
 const url = require('url');
 
-const STORE_PATH = path.join(process.cwd(), 'data', 'store.json');
-
-// In-memory cache for serverless invocation lifecycle
 let memoryStore = null;
 
 function loadStore() {
   if (memoryStore) return memoryStore;
-  try {
-    if (fs.existsSync(STORE_PATH)) {
-      memoryStore = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
-      return memoryStore;
-    }
-  } catch (e) {
-    console.error('Error reading data/store.json:', e);
+  const possiblePaths = [
+    path.join(__dirname, '..', 'data', 'store.json'),
+    path.join(process.cwd(), 'data', 'store.json'),
+    path.join(__dirname, 'store.json')
+  ];
+
+  for (const p of possiblePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        memoryStore = JSON.parse(fs.readFileSync(p, 'utf8'));
+        return memoryStore;
+      }
+    } catch (e) {}
   }
+
   memoryStore = { activeTeam: 'filial', teams: [], tasks: [], players: { filial: [], juvenil: [] }, sessions: { filial: [], juvenil: [] }, matches: { filial: [], juvenil: [] }, videos: { filial: [], juvenil: [] }, attendances: { filial: {}, juvenil: {} }, ratings: { filial: {}, juvenil: {} } };
   return memoryStore;
 }
 
 function saveStore(data) {
   memoryStore = data;
-  try {
-    // Attempt file write (works locally or in writable serverless /tmp if needed)
-    fs.writeFileSync(STORE_PATH, JSON.stringify(data, null, 2), 'utf8');
-  } catch (e) {
-    // Expected on read-only serverless filesystem; client also preserves state in localStorage
-    console.warn('Ephemeral filesystem note:', e.message);
-  }
 }
 
 module.exports = (req, res) => {
   const parsedUrl = url.parse(req.url, true);
-  let pathname = parsedUrl.pathname;
+  let pathname = parsedUrl.pathname || '';
 
-  // Handle both /api/xxx and xxx if rewritten
-  if (pathname.startsWith('/api/')) {
-    pathname = pathname.replace('/api/', '');
-  } else if (pathname.startsWith('/')) {
-    pathname = pathname.substring(1);
-  }
+  // Clean pathname
+  pathname = pathname.replace(/^\/api\//, '').replace(/^\//, '');
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');

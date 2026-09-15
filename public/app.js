@@ -61,23 +61,45 @@ async function fetchState() {
     if (cached) {
       try {
         const parsedCached = JSON.parse(cached);
-        if (parsedCached && parsedCached.players) {
+        if (parsedCached && parsedCached.tasks && parsedCached.tasks.length > 0) {
           appState = parsedCached;
         }
       } catch (e) {}
     }
-    const res = await fetch('/api/state');
-    if (res.ok) {
-      const serverState = await res.json();
-      if (serverState) {
-        // If local has more sessions or tasks created while offline/serverless
-        appState = serverState;
-        if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
-        try {
-          localStorage.setItem('lanucia_app_state', JSON.stringify(appState));
-        } catch(e) {}
+
+    let loaded = false;
+    try {
+      const res = await fetch('/api/state');
+      if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const serverState = await res.json();
+          if (serverState && serverState.tasks && serverState.tasks.length > 0) {
+            appState = serverState;
+            loaded = true;
+          }
+        }
       }
+    } catch(err) {}
+
+    // Fallback directly to public initial_store.json if tasks are still empty
+    if (!loaded && (!appState.tasks || appState.tasks.length === 0)) {
+      try {
+        const resInit = await fetch('/initial_store.json');
+        if (resInit.ok) {
+          const initData = await resInit.json();
+          if (initData && initData.tasks && initData.tasks.length > 0) {
+            appState = initData;
+            loaded = true;
+          }
+        }
+      } catch(e) {}
     }
+
+    if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
+    try {
+      localStorage.setItem('lanucia_app_state', JSON.stringify(appState));
+    } catch(e) {}
   } catch (err) {
     console.error('Error fetching state:', err);
   }
