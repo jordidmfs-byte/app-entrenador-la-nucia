@@ -59,27 +59,34 @@ function saveStateToStorage() {
 }
 
 // Initialize
+// Initialize
 async function init() {
   currentView = 'dashboard';
   if (window.location.hash) {
     history.replaceState(null, null, ' ');
   }
 
-  // 1. Render inicial inmediato para que en móvil/tablet aparezca todo de inmediato sin tocar el escudo
+  // 1. Render inicial inmediato desde cache local o defaults
   initWeekSelector();
   updateHeaderUI();
   renderView();
 
-  // 2. Cargar datos del servidor en segundo plano y refrescar
-  await fetchState();
+  // 2. Cargar datos del servidor Cloud DB (Neon) y refrescar vista
+  await fetchState(false);
   initWeekSelector();
   updateHeaderUI();
   renderView();
+
+  // 3. Polling en tiempo real cada 4 segundos para sincronización entre dispositivos
+  if (!window.cloudSyncInterval) {
+    window.cloudSyncInterval = setInterval(() => {
+      fetchState(true);
+    }, 4000);
+  }
 }
 
-async function fetchState() {
+async function fetchState(silent = false) {
   try {
-    // 1. Fetch initial_store.json to map static task graphics and defaults
     let initData = null;
     const initialGraphicsMap = {};
     try {
@@ -96,82 +103,93 @@ async function fetchState() {
       }
     } catch (e) {}
 
-    // 2. Load user's cached state from localStorage
-    const cached = localStorage.getItem('lanucia_app_state');
-    if (cached) {
-      try {
-        const parsedCached = JSON.parse(cached);
-        if (parsedCached && parsedCached.tasks && parsedCached.tasks.length > 0) {
-          appState = parsedCached;
-        }
-      } catch (e) {}
-    } else if (initData) {
-      appState = initData;
+    // Fetch live state from Cloud DB via /api/state
+    let serverData = null;
+    try {
+      const resServer = await fetch('/api/state');
+      if (resServer.ok) {
+        serverData = await resServer.json();
+      }
+    } catch (e) {}
+
+    let newStore = serverData;
+
+    if (!newStore) {
+      const cached = localStorage.getItem('lanucia_app_state');
+      if (cached) {
+        try {
+          newStore = JSON.parse(cached);
+        } catch (e) {}
+      }
     }
 
-    // 3. Populate missing sections or static graphics
-    if (initData) {
-      if (!appState.tasks || appState.tasks.length === 0) {
-        appState.tasks = initData.tasks || [];
-      } else {
-        // Re-attach static graphics for initial 50 tasks
-        appState.tasks.forEach(t => {
-          if (!t.grafico && initialGraphicsMap[t.id]) {
-            t.grafico = initialGraphicsMap[t.id];
+    if (!newStore && initData) {
+      newStore = initData;
+    }
+
+    if (newStore) {
+      if (initData) {
+        if (!newStore.tasks || newStore.tasks.length === 0) {
+          newStore.tasks = initData.tasks || [];
+        } else {
+          newStore.tasks.forEach(t => {
+            if (!t.grafico && initialGraphicsMap[t.id]) {
+              t.grafico = initialGraphicsMap[t.id];
+            }
+          });
+          const rondoInServer = newStore.tasks.some(t => (t.nombre || '').toLowerCase().includes('rondo'));
+          if (!rondoInServer && initData.tasks) {
+            const rondoInInit = initData.tasks.find(t => (t.nombre || '').toLowerCase().includes('rondo'));
+            if (rondoInInit) newStore.tasks.unshift(rondoInInit);
           }
-        });
-        // Ensure Rondo task is present
-        const rondoInLocal = appState.tasks.some(t => (t.nombre || '').toLowerCase().includes('rondo'));
-        if (!rondoInLocal && initData.tasks) {
-          const rondoInInit = initData.tasks.find(t => (t.nombre || '').toLowerCase().includes('rondo'));
-          if (rondoInInit) appState.tasks.unshift(rondoInInit);
+        }
+        if (!newStore.players) newStore.players = { filial: [], juvenil: [] };
+        if (!newStore.players.filial || newStore.players.filial.length === 0) newStore.players.filial = initData.players.filial || [];
+        if (!newStore.players.juvenil || newStore.players.juvenil.length === 0) newStore.players.juvenil = initData.players.juvenil || [];
+
+        if (!newStore.sessions) newStore.sessions = { filial: [], juvenil: [] };
+        if (!newStore.sessions.filial || newStore.sessions.filial.length === 0) newStore.sessions.filial = initData.sessions.filial || [];
+        if (!newStore.sessions.juvenil || newStore.sessions.juvenil.length === 0) newStore.sessions.juvenil = initData.sessions.juvenil || [];
+
+        if (!newStore.matches) newStore.matches = { filial: [], juvenil: [] };
+        if (!newStore.matches.filial || newStore.matches.filial.length === 0) newStore.matches.filial = initData.matches.filial || [];
+        if (!newStore.matches.juvenil || newStore.matches.juvenil.length === 0) newStore.matches.juvenil = initData.matches.juvenil || [];
+
+        if (!newStore.videos) newStore.videos = { filial: [], juvenil: [] };
+        if (!newStore.videos.filial || newStore.videos.filial.length === 0) newStore.videos.filial = initData.videos.filial || [];
+        if (!newStore.videos.juvenil || newStore.videos.juvenil.length === 0) newStore.videos.juvenil = initData.videos.juvenil || [];
+
+        if (!newStore.attendances) newStore.attendances = { filial: {}, juvenil: {} };
+        if (!newStore.attendances.filial || Object.keys(newStore.attendances.filial).length === 0) newStore.attendances.filial = initData.attendances.filial || {};
+        if (!newStore.attendances.juvenil || Object.keys(newStore.attendances.juvenil).length === 0) newStore.attendances.juvenil = initData.attendances.juvenil || {};
+
+        if (!newStore.ratings) newStore.ratings = { filial: {}, juvenil: {} };
+        if (!newStore.ratings.filial || Object.keys(newStore.ratings.filial).length === 0) newStore.ratings.filial = initData.ratings.filial || {};
+        if (!newStore.ratings.juvenil || Object.keys(newStore.ratings.juvenil).length === 0) newStore.ratings.juvenil = initData.ratings.juvenil || {};
+      }
+
+      if (!newStore.players) newStore.players = { filial: [], juvenil: [] };
+      if (!newStore.ratings) newStore.ratings = { filial: {}, juvenil: {} };
+      if (!newStore.attendances) newStore.attendances = { filial: {}, juvenil: {} };
+      if (!newStore.sessions) newStore.sessions = { filial: [], juvenil: [] };
+      if (!newStore.matches) newStore.matches = { filial: [], juvenil: [] };
+      if (!newStore.videos) newStore.videos = { filial: [], juvenil: [] };
+
+      const prevJson = JSON.stringify(appState);
+      const nextJson = JSON.stringify(newStore);
+
+      appState = newStore;
+      saveStateToStorage();
+
+      if (silent && prevJson !== nextJson) {
+        const isEditing = document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+        if (!isEditing) {
+          initWeekSelector();
+          updateHeaderUI();
+          renderView();
         }
       }
-
-      if (!appState.players) appState.players = { filial: [], juvenil: [] };
-      if (!appState.players.filial || appState.players.filial.length === 0) appState.players.filial = initData.players.filial || [];
-      if (!appState.players.juvenil || appState.players.juvenil.length === 0) appState.players.juvenil = initData.players.juvenil || [];
-
-      if (!appState.sessions) appState.sessions = { filial: [], juvenil: [] };
-      if (!appState.sessions.filial || appState.sessions.filial.length === 0) {
-        appState.sessions.filial = (initData.sessions && initData.sessions.filial) ? initData.sessions.filial : [];
-      }
-      if (!appState.sessions.juvenil || appState.sessions.juvenil.length === 0) {
-        appState.sessions.juvenil = (initData.sessions && initData.sessions.juvenil) ? initData.sessions.juvenil : [];
-      }
-
-      if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
-      if (!appState.matches.filial || appState.matches.filial.length === 0) {
-        appState.matches.filial = (initData.matches && initData.matches.filial) ? initData.matches.filial : [];
-      }
-      if (!appState.matches.juvenil || appState.matches.juvenil.length === 0) {
-        appState.matches.juvenil = (initData.matches && initData.matches.juvenil) ? initData.matches.juvenil : [];
-      }
-
-      if (!appState.videos) appState.videos = { filial: [], juvenil: [] };
-      if (!appState.videos.filial || appState.videos.filial.length === 0) {
-        appState.videos.filial = (initData.videos && initData.videos.filial) ? initData.videos.filial : [];
-      }
-
-      if (!appState.attendances) appState.attendances = { filial: {}, juvenil: {} };
-      if (!appState.attendances.filial || Object.keys(appState.attendances.filial).length === 0) {
-        appState.attendances.filial = (initData.attendances && initData.attendances.filial) ? initData.attendances.filial : {};
-      }
-
-      if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
-      if (!appState.ratings.filial || Object.keys(appState.ratings.filial).length === 0) {
-        appState.ratings.filial = (initData.ratings && initData.ratings.filial) ? initData.ratings.filial : {};
-      }
     }
-
-    if (!appState.players) appState.players = { filial: [], juvenil: [] };
-    if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
-    if (!appState.attendances) appState.attendances = { filial: {}, juvenil: {} };
-    if (!appState.sessions) appState.sessions = { filial: [], juvenil: [] };
-    if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
-    if (!appState.videos) appState.videos = { filial: [], juvenil: [] };
-
-    saveStateToStorage();
   } catch (err) {
     console.error('Error fetching state:', err);
   }

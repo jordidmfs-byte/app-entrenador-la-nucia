@@ -1,10 +1,15 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const { neon } = require('@neondatabase/serverless');
 
 let memoryStore = null;
 
-function loadStore() {
+function getDbUrl() {
+  return process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || "postgresql://neondb_owner:npg_zdx3bpIy9QcP@ep-rapid-surf-av01jycx-pooler.c-11.us-east-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require";
+}
+
+function loadLocalStore() {
   if (memoryStore) return memoryStore;
   const possiblePaths = [
     path.join(__dirname, '..', 'data', 'store.json'),
@@ -25,15 +30,57 @@ function loadStore() {
   return memoryStore;
 }
 
-function saveStore(data) {
-  memoryStore = data;
+let tableChecked = false;
+async function ensureTable(sql) {
+  if (tableChecked) return;
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS app_store (id VARCHAR(50) PRIMARY KEY, data JSONB, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+    tableChecked = true;
+  } catch(e) {}
 }
 
-module.exports = (req, res) => {
+async function loadStore() {
+  const dbUrl = getDbUrl();
+  if (dbUrl) {
+    try {
+      const sql = neon(dbUrl);
+      await ensureTable(sql);
+      const rows = await sql`SELECT data FROM app_store WHERE id = 'state'`;
+      if (rows && rows.length > 0 && rows[0].data) {
+        memoryStore = rows[0].data;
+        return memoryStore;
+      }
+    } catch(e) {
+      console.error("Cloud DB load error:", e);
+    }
+  }
+  return loadLocalStore();
+}
+
+async function saveStore(data) {
+  memoryStore = data;
+  const dbUrl = getDbUrl();
+  if (dbUrl) {
+    try {
+      const sql = neon(dbUrl);
+      await ensureTable(sql);
+      await sql`INSERT INTO app_store (id, data, updated_at) VALUES ('state', ${JSON.stringify(data)}::jsonb, NOW()) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`;
+    } catch(e) {
+      console.error("Cloud DB save error:", e);
+    }
+  }
+  try {
+    const localPath = path.join(process.cwd(), 'data', 'store.json');
+    if (fs.existsSync(path.dirname(localPath))) {
+      fs.writeFileSync(localPath, JSON.stringify(data, null, 2), 'utf8');
+    }
+  } catch(e) {}
+}
+
+module.exports = async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   let pathname = parsedUrl.pathname || '';
 
-  // Clean pathname
   pathname = pathname.replace(/^\/api\//, '').replace(/^\//, '');
 
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -55,22 +102,30 @@ module.exports = (req, res) => {
   }
 
   if (route === 'state' && req.method === 'GET') {
+    const store = await loadStore();
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(loadStore()));
+    res.end(JSON.stringify(store));
     return;
   }
 
   let body = '';
   req.on('data', c => body += c);
-  req.on('end', () => {
+  req.on('end', async () => {
     try {
       const parsed = body ? JSON.parse(body) : {};
-      const store = loadStore();
+      const store = await loadStore();
+
+      if (route === 'state' && req.method === 'POST') {
+        await saveStore(parsed);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+        return;
+      }
 
       if (route === 'active-team' && req.method === 'POST') {
         if (parsed.team === 'filial' || parsed.team === 'juvenil') {
           store.activeTeam = parsed.team;
-          saveStore(store);
+          await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, activeTeam: store.activeTeam }));
@@ -88,7 +143,7 @@ module.exports = (req, res) => {
           parsed.id = Date.now();
           store.players[team].push(parsed);
         }
-        saveStore(store);
+        await saveStore(store);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, player: parsed }));
         return;
@@ -98,7 +153,7 @@ module.exports = (req, res) => {
         const team = parsed.team || 'filial';
         if (store.players[team]) {
           store.players[team] = store.players[team].filter(p => p.id !== parsed.id);
-          saveStore(store);
+          await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
@@ -115,7 +170,7 @@ module.exports = (req, res) => {
           parsed.id = Date.now();
           store.tasks.push(parsed);
         }
-        saveStore(store);
+        await saveStore(store);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, task: parsed }));
         return;
@@ -124,7 +179,7 @@ module.exports = (req, res) => {
       if (route === 'tasks/delete' && req.method === 'POST') {
         if (store.tasks) {
           store.tasks = store.tasks.filter(t => t.id !== parsed.id);
-          saveStore(store);
+          await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
@@ -142,7 +197,7 @@ module.exports = (req, res) => {
           parsed.id = Date.now();
           store.sessions[team].push(parsed);
         }
-        saveStore(store);
+        await saveStore(store);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, session: parsed }));
         return;
@@ -152,7 +207,7 @@ module.exports = (req, res) => {
         const team = parsed.team || 'filial';
         if (store.sessions[team]) {
           store.sessions[team] = store.sessions[team].filter(s => s.id !== parsed.id);
-          saveStore(store);
+          await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
@@ -164,7 +219,7 @@ module.exports = (req, res) => {
         if (!store.attendances[team]) store.attendances[team] = {};
         if (parsed.date) {
           store.attendances[team][parsed.date] = parsed.records || {};
-          saveStore(store);
+          await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
@@ -182,7 +237,7 @@ module.exports = (req, res) => {
           parsed.id = Date.now();
           store.matches[team].push(parsed);
         }
-        saveStore(store);
+        await saveStore(store);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, match: parsed }));
         return;
@@ -192,7 +247,7 @@ module.exports = (req, res) => {
         const team = parsed.team || 'filial';
         if (store.matches[team]) {
           store.matches[team] = store.matches[team].filter(m => m.id !== parsed.id);
-          saveStore(store);
+          await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
@@ -210,7 +265,7 @@ module.exports = (req, res) => {
           parsed.id = Date.now();
           store.videos[team].push(parsed);
         }
-        saveStore(store);
+        await saveStore(store);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, video: parsed }));
         return;
@@ -220,7 +275,7 @@ module.exports = (req, res) => {
         const team = parsed.team || 'filial';
         if (store.videos[team]) {
           store.videos[team] = store.videos[team].filter(v => v.id !== parsed.id);
-          saveStore(store);
+          await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
