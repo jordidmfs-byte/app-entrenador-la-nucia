@@ -51,7 +51,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname.startsWith('/api/')) {
+  if (pathname.includes('/api/')) {
     apiHandler(req, res);
     return;
   }

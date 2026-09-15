@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   let pathname = parsedUrl.pathname || '';
 
-  pathname = pathname.replace(/^\/api\//, '').replace(/^\//, '');
+  pathname = pathname.replace(/^\/?public\//, '').replace(/^\/?api\//, '').replace(/^\//, '');
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
