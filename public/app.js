@@ -38,9 +38,23 @@ let boardBackgroundImg = null;
 
 function saveStateToStorage() {
   try {
-    localStorage.setItem('lanucia_app_state', JSON.stringify(appState));
+    if (!appState) return;
+    const lightTasks = (appState.tasks || []).map(t => {
+      const copy = { ...t };
+      if (Number(copy.id) <= 50 && copy.grafico && copy.grafico.length > 500) {
+        delete copy.grafico;
+      }
+      return copy;
+    });
+
+    const lightState = {
+      ...appState,
+      tasks: lightTasks
+    };
+
+    localStorage.setItem('lanucia_app_state', JSON.stringify(lightState));
   } catch (e) {
-    console.warn('LocalStorage save error:', e);
+    console.warn('LocalStorage save warning:', e);
   }
 }
 
@@ -65,89 +79,90 @@ async function init() {
 
 async function fetchState() {
   try {
+    // 1. Fetch initial_store.json to map static task graphics and defaults
+    let initData = null;
+    const initialGraphicsMap = {};
+    try {
+      const resInit = await fetch('/initial_store.json');
+      if (resInit.ok) {
+        initData = await resInit.json();
+        if (initData && initData.tasks) {
+          initData.tasks.forEach(t => {
+            if (t.id && t.grafico) {
+              initialGraphicsMap[t.id] = t.grafico;
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
+    // 2. Load user's cached state from localStorage
     const cached = localStorage.getItem('lanucia_app_state');
-    let hasLocalData = false;
     if (cached) {
       try {
         const parsedCached = JSON.parse(cached);
         if (parsedCached && parsedCached.tasks && parsedCached.tasks.length > 0) {
           appState = parsedCached;
-          hasLocalData = true;
         }
       } catch (e) {}
+    } else if (initData) {
+      appState = initData;
     }
 
-    let loadedFromServer = false;
-    try {
-      const res = await fetch('/api/state');
-      if (res.ok) {
-        const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          const serverState = await res.json();
-          if (serverState && serverState.tasks && serverState.tasks.length > 0) {
-            if (!hasLocalData) {
-              appState = serverState;
-              loadedFromServer = true;
-            }
+    // 3. Populate missing sections or static graphics
+    if (initData) {
+      if (!appState.tasks || appState.tasks.length === 0) {
+        appState.tasks = initData.tasks || [];
+      } else {
+        // Re-attach static graphics for initial 50 tasks
+        appState.tasks.forEach(t => {
+          if (!t.grafico && initialGraphicsMap[t.id]) {
+            t.grafico = initialGraphicsMap[t.id];
           }
+        });
+        // Ensure Rondo task is present
+        const rondoInLocal = appState.tasks.some(t => (t.nombre || '').toLowerCase().includes('rondo'));
+        if (!rondoInLocal && initData.tasks) {
+          const rondoInInit = initData.tasks.find(t => (t.nombre || '').toLowerCase().includes('rondo'));
+          if (rondoInInit) appState.tasks.unshift(rondoInInit);
         }
       }
-    } catch(err) {}
 
-    // Load initial fallback to populate any missing sessions, matches, tasks (like Rondo), attendances, or ratings
-    try {
-      const resInit = await fetch('/initial_store.json');
-      if (resInit.ok) {
-        const initData = await resInit.json();
-        if (initData) {
-          if (!appState.tasks || appState.tasks.length === 0) {
-            appState.tasks = initData.tasks || [];
-          } else {
-            // Ensure Rondo task is present
-            const rondoInLocal = appState.tasks.some(t => (t.nombre || '').toLowerCase().includes('rondo'));
-            if (!rondoInLocal && initData.tasks) {
-              const rondoInInit = initData.tasks.find(t => (t.nombre || '').toLowerCase().includes('rondo'));
-              if (rondoInInit) appState.tasks.unshift(rondoInInit);
-            }
-          }
+      if (!appState.players) appState.players = { filial: [], juvenil: [] };
+      if (!appState.players.filial || appState.players.filial.length === 0) appState.players.filial = initData.players.filial || [];
+      if (!appState.players.juvenil || appState.players.juvenil.length === 0) appState.players.juvenil = initData.players.juvenil || [];
 
-          if (!appState.players) appState.players = { filial: [], juvenil: [] };
-          if (!appState.players.filial || appState.players.filial.length === 0) appState.players.filial = initData.players.filial || [];
-          if (!appState.players.juvenil || appState.players.juvenil.length === 0) appState.players.juvenil = initData.players.juvenil || [];
-
-          if (!appState.sessions) appState.sessions = { filial: [], juvenil: [] };
-          if (!appState.sessions.filial || appState.sessions.filial.length === 0) {
-            appState.sessions.filial = (initData.sessions && initData.sessions.filial) ? initData.sessions.filial : [];
-          }
-          if (!appState.sessions.juvenil || appState.sessions.juvenil.length === 0) {
-            appState.sessions.juvenil = (initData.sessions && initData.sessions.juvenil) ? initData.sessions.juvenil : [];
-          }
-
-          if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
-          if (!appState.matches.filial || appState.matches.filial.length === 0) {
-            appState.matches.filial = (initData.matches && initData.matches.filial) ? initData.matches.filial : [];
-          }
-          if (!appState.matches.juvenil || appState.matches.juvenil.length === 0) {
-            appState.matches.juvenil = (initData.matches && initData.matches.juvenil) ? initData.matches.juvenil : [];
-          }
-
-          if (!appState.videos) appState.videos = { filial: [], juvenil: [] };
-          if (!appState.videos.filial || appState.videos.filial.length === 0) {
-            appState.videos.filial = (initData.videos && initData.videos.filial) ? initData.videos.filial : [];
-          }
-
-          if (!appState.attendances) appState.attendances = { filial: {}, juvenil: {} };
-          if (!appState.attendances.filial || Object.keys(appState.attendances.filial).length === 0) {
-            appState.attendances.filial = (initData.attendances && initData.attendances.filial) ? initData.attendances.filial : {};
-          }
-
-          if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
-          if (!appState.ratings.filial || Object.keys(appState.ratings.filial).length === 0) {
-            appState.ratings.filial = (initData.ratings && initData.ratings.filial) ? initData.ratings.filial : {};
-          }
-        }
+      if (!appState.sessions) appState.sessions = { filial: [], juvenil: [] };
+      if (!appState.sessions.filial || appState.sessions.filial.length === 0) {
+        appState.sessions.filial = (initData.sessions && initData.sessions.filial) ? initData.sessions.filial : [];
       }
-    } catch(e) {}
+      if (!appState.sessions.juvenil || appState.sessions.juvenil.length === 0) {
+        appState.sessions.juvenil = (initData.sessions && initData.sessions.juvenil) ? initData.sessions.juvenil : [];
+      }
+
+      if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
+      if (!appState.matches.filial || appState.matches.filial.length === 0) {
+        appState.matches.filial = (initData.matches && initData.matches.filial) ? initData.matches.filial : [];
+      }
+      if (!appState.matches.juvenil || appState.matches.juvenil.length === 0) {
+        appState.matches.juvenil = (initData.matches && initData.matches.juvenil) ? initData.matches.juvenil : [];
+      }
+
+      if (!appState.videos) appState.videos = { filial: [], juvenil: [] };
+      if (!appState.videos.filial || appState.videos.filial.length === 0) {
+        appState.videos.filial = (initData.videos && initData.videos.filial) ? initData.videos.filial : [];
+      }
+
+      if (!appState.attendances) appState.attendances = { filial: {}, juvenil: {} };
+      if (!appState.attendances.filial || Object.keys(appState.attendances.filial).length === 0) {
+        appState.attendances.filial = (initData.attendances && initData.attendances.filial) ? initData.attendances.filial : {};
+      }
+
+      if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
+      if (!appState.ratings.filial || Object.keys(appState.ratings.filial).length === 0) {
+        appState.ratings.filial = (initData.ratings && initData.ratings.filial) ? initData.ratings.filial : {};
+      }
+    }
 
     if (!appState.players) appState.players = { filial: [], juvenil: [] };
     if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
