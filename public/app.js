@@ -85,7 +85,6 @@ async function fetchState() {
         if (contentType.includes('application/json')) {
           const serverState = await res.json();
           if (serverState && serverState.tasks && serverState.tasks.length > 0) {
-            // If local state doesn't exist yet, populate from server
             if (!hasLocalData) {
               appState = serverState;
               loadedFromServer = true;
@@ -95,30 +94,60 @@ async function fetchState() {
       }
     } catch(err) {}
 
-    // Only load initial fallback if we have NO cached state and NO server state
-    if (!hasLocalData && !loadedFromServer) {
-      try {
-        const resInit = await fetch('/initial_store.json');
-        if (resInit.ok) {
-          const initData = await resInit.json();
-          if (initData) {
-            if (!appState.tasks || appState.tasks.length === 0) {
-              appState.tasks = initData.tasks || [];
+    // Load initial fallback to populate any missing sessions, matches, tasks (like Rondo), attendances, or ratings
+    try {
+      const resInit = await fetch('/initial_store.json');
+      if (resInit.ok) {
+        const initData = await resInit.json();
+        if (initData) {
+          if (!appState.tasks || appState.tasks.length === 0) {
+            appState.tasks = initData.tasks || [];
+          } else {
+            // Ensure Rondo task is present
+            const rondoInLocal = appState.tasks.some(t => (t.nombre || '').toLowerCase().includes('rondo'));
+            if (!rondoInLocal && initData.tasks) {
+              const rondoInInit = initData.tasks.find(t => (t.nombre || '').toLowerCase().includes('rondo'));
+              if (rondoInInit) appState.tasks.unshift(rondoInInit);
             }
-            if (!appState.players) appState.players = { filial: [], juvenil: [] };
-            if (!appState.players.filial || appState.players.filial.length === 0) {
-              appState.players.filial = initData.players.filial || [];
-            }
-            if (!appState.players.juvenil || appState.players.juvenil.length === 0) {
-              appState.players.juvenil = initData.players.juvenil || [];
-            }
-            if (!appState.sessions) appState.sessions = initData.sessions || { filial: [], juvenil: [] };
-            if (!appState.matches) appState.matches = initData.matches || { filial: [], juvenil: [] };
-            if (!appState.videos) appState.videos = initData.videos || { filial: [], juvenil: [] };
+          }
+
+          if (!appState.players) appState.players = { filial: [], juvenil: [] };
+          if (!appState.players.filial || appState.players.filial.length === 0) appState.players.filial = initData.players.filial || [];
+          if (!appState.players.juvenil || appState.players.juvenil.length === 0) appState.players.juvenil = initData.players.juvenil || [];
+
+          if (!appState.sessions) appState.sessions = { filial: [], juvenil: [] };
+          if (!appState.sessions.filial || appState.sessions.filial.length === 0) {
+            appState.sessions.filial = (initData.sessions && initData.sessions.filial) ? initData.sessions.filial : [];
+          }
+          if (!appState.sessions.juvenil || appState.sessions.juvenil.length === 0) {
+            appState.sessions.juvenil = (initData.sessions && initData.sessions.juvenil) ? initData.sessions.juvenil : [];
+          }
+
+          if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
+          if (!appState.matches.filial || appState.matches.filial.length === 0) {
+            appState.matches.filial = (initData.matches && initData.matches.filial) ? initData.matches.filial : [];
+          }
+          if (!appState.matches.juvenil || appState.matches.juvenil.length === 0) {
+            appState.matches.juvenil = (initData.matches && initData.matches.juvenil) ? initData.matches.juvenil : [];
+          }
+
+          if (!appState.videos) appState.videos = { filial: [], juvenil: [] };
+          if (!appState.videos.filial || appState.videos.filial.length === 0) {
+            appState.videos.filial = (initData.videos && initData.videos.filial) ? initData.videos.filial : [];
+          }
+
+          if (!appState.attendances) appState.attendances = { filial: {}, juvenil: {} };
+          if (!appState.attendances.filial || Object.keys(appState.attendances.filial).length === 0) {
+            appState.attendances.filial = (initData.attendances && initData.attendances.filial) ? initData.attendances.filial : {};
+          }
+
+          if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
+          if (!appState.ratings.filial || Object.keys(appState.ratings.filial).length === 0) {
+            appState.ratings.filial = (initData.ratings && initData.ratings.filial) ? initData.ratings.filial : {};
           }
         }
-      } catch(e) {}
-    }
+      }
+    } catch(e) {}
 
     if (!appState.players) appState.players = { filial: [], juvenil: [] };
     if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
