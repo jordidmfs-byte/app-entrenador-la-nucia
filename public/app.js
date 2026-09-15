@@ -189,63 +189,7 @@ function updateHeaderUI() {
   });
 }
 
-async function openMobileConnectModal() {
-  let shareUrl = 'https://lauren-routers-circuit-blocked.trycloudflare.com/index.html';
-  try {
-    const res = await fetch('/api/share-url');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.url) shareUrl = data.url;
-    }
-  } catch(e) {
-    console.log('Using default shareUrl');
-  }
 
-  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(shareUrl)}`;
-  const whatsappText = encodeURIComponent(`Hola! Aquí tienes el enlace directo para ver el Panel del Entrenador de La Nucía FS:\n\n${shareUrl}`);
-  const whatsappUrl = `https://api.whatsapp.com/send?text=${whatsappText}`;
-
-  openModal(`
-    <div class="text-center">
-      <div class="w-12 h-12 mx-auto rounded-2xl bg-club-red/10 border border-club-red/30 flex items-center justify-center text-2xl mb-2 text-club-red shadow-lg shadow-club-red/10">
-        🌐
-      </div>
-      <h3 class="text-xl font-outfit font-extrabold text-white uppercase tracking-wider mb-1">
-        Enlace para Compartir (Fuera de Wi-Fi)
-      </h3>
-      <p class="text-xs text-slate-400 max-w-md mx-auto mb-4">
-        Cualquiera puede abrir este enlace o escanear el QR desde cualquier lugar con datos móviles (4G/5G) u otra red:
-      </p>
-
-      <!-- QR del enlace web público -->
-      <div class="inline-block p-3.5 bg-white rounded-2xl shadow-2xl border-4 border-club-red/40 mb-4">
-        <img src="${qrImgUrl}" alt="QR Enlace Compartir" class="w-48 h-48 sm:w-56 sm:h-56 mx-auto object-contain rounded-lg">
-      </div>
-
-      <!-- Botones de Enviar WhatsApp y Copiar Enlace -->
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-md mx-auto mb-3">
-        <a href="${whatsappUrl}" target="_blank" rel="noopener noreferrer" class="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-outfit font-bold text-xs uppercase shadow-lg shadow-emerald-600/20 transition-all">
-          <span class="text-base">📲</span> Enviar por WhatsApp
-        </a>
-        <button type="button" onclick="navigator.clipboard.writeText('${shareUrl}'); showNotification('¡Enlace público copiado al portapapeles!')" class="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-outfit font-bold text-xs uppercase border border-white/10 transition-all">
-          <span>📋</span> Copiar Enlace
-        </button>
-      </div>
-
-      <!-- URL texto -->
-      <div class="bg-black/60 border border-white/10 rounded-xl px-3 py-2 max-w-md mx-auto mb-4 flex items-center justify-between gap-2">
-        <span class="text-xs font-mono text-emerald-400 select-all truncate text-left">${shareUrl}</span>
-        <a href="${shareUrl}" target="_blank" class="text-xs text-blue-400 hover:underline flex-shrink-0 font-bold">Abrir ↗</a>
-      </div>
-
-      <div class="flex justify-center mt-2">
-        <button onclick="closeModal()" class="px-6 py-2 rounded-xl bg-white/10 hover:bg-white/20 font-outfit font-bold text-xs uppercase tracking-wider text-white transition-all">
-          Cerrar
-        </button>
-      </div>
-    </div>
-  `);
-}
 
 async function setTeam(team) {
   if (appState.activeTeam === team) return;
