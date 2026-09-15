@@ -82,19 +82,25 @@ async function fetchState() {
       }
     } catch(err) {}
 
-    // Fallback directly to public initial_store.json if tasks are still empty
-    if (!loaded && (!appState.tasks || appState.tasks.length === 0)) {
-      try {
-        const resInit = await fetch('/initial_store.json');
-        if (resInit.ok) {
-          const initData = await resInit.json();
-          if (initData && initData.tasks && initData.tasks.length > 0) {
-            appState = initData;
-            loaded = true;
+    // Always load initial fallback to guarantee 50 tasks and squad rosters are present
+    try {
+      const resInit = await fetch('/initial_store.json');
+      if (resInit.ok) {
+        const initData = await resInit.json();
+        if (initData) {
+          if (!appState.tasks || appState.tasks.length < initData.tasks.length) {
+            appState.tasks = initData.tasks;
+          }
+          if (!appState.players) appState.players = { filial: [], juvenil: [] };
+          if (!appState.players.filial || appState.players.filial.length === 0) {
+            appState.players.filial = initData.players.filial || [];
+          }
+          if (!appState.players.juvenil || appState.players.juvenil.length === 0) {
+            appState.players.juvenil = initData.players.juvenil || [];
           }
         }
-      } catch(e) {}
-    }
+      }
+    } catch(e) {}
 
     if (!appState.ratings) appState.ratings = { filial: {}, juvenil: {} };
     try {
