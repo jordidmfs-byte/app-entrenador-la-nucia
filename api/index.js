@@ -1,7 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
-const { neon } = require('@neondatabase/serverless');
+let neon = null;
+try {
+  neon = require('@neondatabase/serverless').neon;
+} catch (e) {
+  // Module not found or failed to load in serverless bundle
+}
 
 let memoryStore = null;
 
@@ -32,7 +37,7 @@ function loadLocalStore() {
 
 let tableChecked = false;
 async function ensureTable(sql) {
-  if (tableChecked) return;
+  if (tableChecked || !sql) return;
   try {
     await sql`CREATE TABLE IF NOT EXISTS app_store (id VARCHAR(50) PRIMARY KEY, data JSONB, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
     tableChecked = true;
@@ -41,7 +46,7 @@ async function ensureTable(sql) {
 
 async function loadStore() {
   const dbUrl = getDbUrl();
-  if (dbUrl) {
+  if (dbUrl && neon) {
     try {
       const sql = neon(dbUrl);
       await ensureTable(sql);
@@ -60,7 +65,7 @@ async function loadStore() {
 async function saveStore(data) {
   memoryStore = data;
   const dbUrl = getDbUrl();
-  if (dbUrl) {
+  if (dbUrl && neon) {
     try {
       const sql = neon(dbUrl);
       await ensureTable(sql);
