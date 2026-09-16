@@ -1102,9 +1102,10 @@ async function handleSaveAttendance(e) {
 }
 
 // ====================================================
+// ====================================================
 // VIEW 3: TAREAS (50 TAREAS + PIZARRA TÁCTICA CANVAS)
 // ====================================================
-function renderTasks() {
+function filterTasksList() {
   const tasks = appState.tasks || [];
   let filtered = tasks;
 
@@ -1112,11 +1113,99 @@ function renderTasks() {
     filtered = filtered.filter(t => (t.fase_juego || '').toLowerCase() === taskFilterFase.toLowerCase());
   }
 
-  if (taskSearchQuery.trim()) {
-    const q = taskSearchQuery.toLowerCase();
-    filtered = filtered.filter(t => (t.nombre || '').toLowerCase().includes(q) || (t.objetivo || '').toLowerCase().includes(q));
+  if (taskSearchQuery && taskSearchQuery.trim()) {
+    const rawTokens = taskSearchQuery.trim().split(/\s+/).filter(Boolean);
+    const normalize = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const tokens = rawTokens.map(t => normalize(t));
+
+    filtered = filtered.filter(t => {
+      const tagsStr = Array.isArray(t.etiquetas) ? t.etiquetas.join(' ') : (t.etiquetas || '');
+      const matStr = Array.isArray(t.material) ? t.material.join(' ') : (t.material || '');
+      const corpus = normalize(`${t.nombre || ''} ${t.objetivo || ''} ${t.descripcion || ''} ${t.fase_juego || ''} ${tagsStr} ${matStr} ${t.dificultad || ''}`);
+
+      return tokens.every(tok => corpus.includes(tok));
+    });
+  }
+  return filtered;
+}
+
+function renderTaskCardsHtml(filtered) {
+  if (!filtered || filtered.length === 0) {
+    return `
+      <div class="flex flex-col items-center justify-center p-12 bg-[#161616] border border-dashed border-white/10 rounded-2xl text-center col-span-full">
+        <div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
+          <svg class="w-6 h-6 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+        <h4 class="font-outfit font-bold text-white uppercase tracking-wider text-sm">No se encontraron tareas</h4>
+        <p class="text-xs text-[#94A3B8] max-w-sm mt-1">No hay tareas que coincidan con los términos de búsqueda o el filtro seleccionado.</p>
+        <button onclick="clearTaskSearch(); setTaskFaseFilter('all');" class="mt-4 px-4 py-2 rounded-xl bg-club-red hover:bg-club-red-hover text-white text-xs font-bold uppercase transition-all shadow-md shadow-club-red/20">
+          Mostrar todas las tareas
+        </button>
+      </div>
+    `;
   }
 
+  return `
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      ${filtered.map(t => {
+        let faseBadgeColor = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+        if (t.fase_juego === 'Ataque') faseBadgeColor = 'bg-red-500/20 text-red-300 border-red-500/30';
+        else if (t.fase_juego === 'ABP') faseBadgeColor = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+        else if (t.fase_juego === 'Transición Ofensiva') faseBadgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+
+        return `
+          <div class="bg-[#181818] border border-white/10 rounded-2xl p-5 flex flex-col justify-between shadow-xl hover:border-club-red/40 hover:-translate-y-1 transition-all">
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${faseBadgeColor}">
+                  ${t.fase_juego || 'Ataque'}
+                </span>
+                <div class="flex items-center gap-2">
+                  ${(t.multimedia_file || t.multimedia_link) ? `
+                    <span title="Contenido multimedia adjunto" class="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded">🎬</span>
+                  ` : ''}
+                  <span class="text-xs text-[#94A3B8] font-bold">⏱️ ${t.duracion || 15} min</span>
+                </div>
+              </div>
+              ${t.grafico && t.grafico.startsWith('data:image') ? `
+                <div class="w-full h-36 rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                  <img src="${t.grafico}" class="w-full h-full object-cover">
+                </div>
+              ` : ''}
+              <h3 class="font-outfit font-bold text-base text-white leading-snug line-clamp-2">
+                ${t.nombre}
+              </h3>
+              <p class="text-xs text-[#94A3B8] line-clamp-3 leading-relaxed">
+                ${t.objetivo || t.descripcion || 'Sin descripción detallada.'}
+              </p>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
+              <span class="text-[10px] text-slate-400">👥 ${t.num_jugadores || '10'} Jug. · ${t.dificultad || 'Media'}</span>
+              <div class="flex items-center gap-1.5">
+                <button onclick="editTaskModal(${t.id})" title="Editar tarea" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors text-xs">
+                  ✏️
+                </button>
+                <button onclick="confirmDeleteTask(${t.id}, '${(t.nombre || '').replace(/'/g, "\\'")}')" title="Borrar tarea" class="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/25 text-red-400 hover:text-red-300 transition-colors text-xs">
+                  🗑️
+                </button>
+                <button onclick="viewTaskDetail(${t.id})" class="text-xs font-bold text-club-red hover:text-white transition-colors ml-1">
+                  Ficha ↗
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderTasks() {
+  const tasks = appState.tasks || [];
+  const filtered = filterTasksList();
   const fases = ['all', 'Ataque', 'Defensa', 'Transición Ofensiva', 'Transición Defensiva', 'ABP'];
 
   return `
@@ -1138,78 +1227,45 @@ function renderTasks() {
         </button>
       </div>
 
-      <!-- Filters -->
-      <div class="bg-[#161616] border border-white/10 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div class="w-full md:w-80 relative">
-          <input type="text" id="task-search-input" value="${taskSearchQuery}" placeholder="Buscar tarea u objetivo..." oninput="handleTaskSearch(this.value)"
-                 class="w-full bg-black/40 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-club-red">
-          <span class="absolute left-3 top-2.5 text-xs text-slate-500">🔍</span>
+      <!-- Filters & Enhanced Search -->
+      <div class="bg-[#161616] border border-white/10 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xl">
+        <div class="w-full md:w-96 relative flex items-center">
+          <span class="absolute left-3.5 text-slate-400 pointer-events-none flex items-center">
+            <svg class="w-4 h-4 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </span>
+          <input type="text" id="task-search-input" value="${taskSearchQuery}"
+                 placeholder="Buscar por nombre, objetivo, contenido..."
+                 oninput="handleTaskSearch(this.value)"
+                 class="w-full bg-black/50 border border-white/10 focus:border-club-red rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-club-red/50 transition-all">
+          <button id="task-search-clear" onclick="clearTaskSearch()"
+                  class="absolute right-3 text-slate-400 hover:text-white text-xs font-bold ${taskSearchQuery ? '' : 'hidden'}"
+                  title="Borrar búsqueda">
+            ✕
+          </button>
         </div>
 
-        <div class="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
-          ${fases.map(f => {
-            const isActive = taskFilterFase.toLowerCase() === f.toLowerCase();
-            return `
-              <button onclick="setTaskFaseFilter('${f}')" class="px-3 py-1.5 rounded-lg text-xs font-outfit font-bold uppercase whitespace-nowrap transition-all ${isActive ? 'bg-club-red text-white' : 'bg-white/5 text-[#94A3B8] hover:text-white'}">
-                ${f === 'all' ? 'Todas' : f}
-              </button>
-            `;
-          }).join('')}
+        <div class="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+          <div id="task-search-count" class="text-[11px] font-bold text-[#94A3B8] whitespace-nowrap px-2.5 py-1 rounded-lg bg-white/5 border border-white/5">
+            ${filtered.length} ${filtered.length === 1 ? 'tarea' : 'tareas'}
+          </div>
+          <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 md:pb-0">
+            ${fases.map(f => {
+              const isActive = taskFilterFase.toLowerCase() === f.toLowerCase();
+              return `
+                <button onclick="setTaskFaseFilter('${f}')" class="px-3 py-1.5 rounded-lg text-xs font-outfit font-bold uppercase whitespace-nowrap transition-all ${isActive ? 'bg-club-red text-white shadow-md shadow-club-red/20' : 'bg-white/5 text-[#94A3B8] hover:text-white'}">
+                  ${f === 'all' ? 'Todas' : f}
+                </button>
+              `;
+            }).join('')}
+          </div>
         </div>
       </div>
 
-      <!-- Tasks Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        ${filtered.map(t => {
-          let faseBadgeColor = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-          if (t.fase_juego === 'Ataque') faseBadgeColor = 'bg-red-500/20 text-red-300 border-red-500/30';
-          else if (t.fase_juego === 'ABP') faseBadgeColor = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
-          else if (t.fase_juego === 'Transición Ofensiva') faseBadgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-
-          return `
-            <div class="bg-[#181818] border border-white/10 rounded-2xl p-5 flex flex-col justify-between shadow-xl hover:border-club-red/40 hover:-translate-y-1 transition-all">
-              <div class="flex flex-col gap-3">
-                <div class="flex items-center justify-between">
-                  <span class="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${faseBadgeColor}">
-                    ${t.fase_juego || 'Ataque'}
-                  </span>
-                  <div class="flex items-center gap-2">
-                    ${(t.multimedia_file || t.multimedia_link) ? `
-                      <span title="Contenido multimedia adjunto" class="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded">🎬</span>
-                    ` : ''}
-                    <span class="text-xs text-[#94A3B8] font-bold">⏱️ ${t.duracion || 15} min</span>
-                  </div>
-                </div>
-                ${t.grafico && t.grafico.startsWith('data:image') ? `
-                  <div class="w-full h-36 rounded-xl overflow-hidden border border-white/10 bg-black/40">
-                    <img src="${t.grafico}" class="w-full h-full object-cover">
-                  </div>
-                ` : ''}
-                <h3 class="font-outfit font-bold text-base text-white leading-snug line-clamp-2">
-                  ${t.nombre}
-                </h3>
-                <p class="text-xs text-[#94A3B8] line-clamp-3 leading-relaxed">
-                  ${t.objetivo || t.descripcion || 'Sin descripción detallada.'}
-                </p>
-              </div>
-
-              <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
-                <span class="text-[10px] text-slate-400">👥 ${t.num_jugadores || '10'} Jug. · ${t.dificultad || 'Media'}</span>
-                <div class="flex items-center gap-1.5">
-                  <button onclick="editTaskModal(${t.id})" title="Editar tarea" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors text-xs">
-                    ✏️
-                  </button>
-                  <button onclick="confirmDeleteTask(${t.id}, '${(t.nombre || '').replace(/'/g, "\\'")}')" title="Borrar tarea" class="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/25 text-red-400 hover:text-red-300 transition-colors text-xs">
-                    🗑️
-                  </button>
-                  <button onclick="viewTaskDetail(${t.id})" class="text-xs font-bold text-club-red hover:text-white transition-colors ml-1">
-                    Ficha ↗
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('')}
+      <!-- Tasks Grid Container -->
+      <div id="tasks-grid-container">
+        ${renderTaskCardsHtml(filtered)}
       </div>
     </div>
   `;
@@ -1217,7 +1273,44 @@ function renderTasks() {
 
 function handleTaskSearch(val) {
   taskSearchQuery = val;
-  renderView();
+  const clearBtn = document.getElementById('task-search-clear');
+  if (clearBtn) {
+    if (val && val.trim()) clearBtn.classList.remove('hidden');
+    else clearBtn.classList.add('hidden');
+  }
+
+  const filtered = filterTasksList();
+  const gridContainer = document.getElementById('tasks-grid-container');
+  if (gridContainer) {
+    gridContainer.innerHTML = renderTaskCardsHtml(filtered);
+  }
+
+  const countBadge = document.getElementById('task-search-count');
+  if (countBadge) {
+    countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'tarea' : 'tareas'}`;
+  }
+}
+
+function clearTaskSearch() {
+  taskSearchQuery = '';
+  const input = document.getElementById('task-search-input');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+  const clearBtn = document.getElementById('task-search-clear');
+  if (clearBtn) clearBtn.classList.add('hidden');
+
+  const filtered = filterTasksList();
+  const gridContainer = document.getElementById('tasks-grid-container');
+  if (gridContainer) {
+    gridContainer.innerHTML = renderTaskCardsHtml(filtered);
+  }
+
+  const countBadge = document.getElementById('task-search-count');
+  if (countBadge) {
+    countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'tarea' : 'tareas'}`;
+  }
 }
 
 function setTaskFaseFilter(fase) {
