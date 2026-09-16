@@ -3422,32 +3422,34 @@ function renderSessionShow(session) {
         header, footer, .no-print, nav, button, a { display: none !important; }
         body { background: #FFFFFF !important; color: #000000 !important; font-size: 11px !important; }
         main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-        .pdf-exercise-page { page-break-before: always !important; break-before: page !important; page-break-inside: avoid !important; break-inside: avoid !important; margin-top: 15px !important; }
-        .print-card { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; color: #000000 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; padding: 14px !important; }
-        .print-title { color: #000000 !important; font-size: 14px !important; }
-        .print-text { color: #1E293B !important; font-size: 11px !important; line-height: 1.35 !important; }
-        .print-badge { background: #F1F5F9 !important; border: 1px solid #CBD5E1 !important; color: #0F172A !important; padding: 3px 6px !important; font-size: 10px !important; }
-        .print-court { border: 1px solid #CBD5E1 !important; background: #F8FAFC !important; min-height: auto !important; max-height: 220px !important; }
-        .print-court img { max-height: 200px !important; width: auto !important; margin: 0 auto !important; }
+        .pdf-exercise-page { page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 14px !important; }
+        .print-card { background: #FFFFFF !important; border: 1px solid #CBD5E1 !important; color: #000000 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; padding: 12px 16px !important; }
+        .print-title { color: #000000 !important; font-size: 13px !important; }
+        .print-text { color: #1E293B !important; font-size: 10.5px !important; line-height: 1.3 !important; }
+        .print-badge { background: #F1F5F9 !important; border: 1px solid #CBD5E1 !important; color: #0F172A !important; padding: 2px 6px !important; font-size: 9.5px !important; }
+        .print-court { border: 1px solid #CBD5E1 !important; background: #F8FAFC !important; min-height: auto !important; max-height: 180px !important; }
+        .print-court img { max-height: 170px !important; width: auto !important; margin: 0 auto !important; }
       }
-      .generating-pdf { background: #FFFFFF !important; color: #000000 !important; font-family: 'Plus Jakarta Sans', sans-serif !important; padding: 10px !important; }
-      .generating-pdf .pdf-exercise-page { page-break-before: always !important; break-before: page !important; page-break-inside: avoid !important; break-inside: avoid !important; margin-top: 12px !important; }
-      .generating-pdf .print-card { background: #FFFFFF !important; border: 1px solid #CBD5E1 !important; color: #000000 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; padding: 14px 18px !important; gap: 8px !important; }
+      .generating-pdf { background: #FFFFFF !important; color: #000000 !important; font-family: 'Plus Jakarta Sans', sans-serif !important; padding: 8px 12px !important; }
+      .generating-pdf .pdf-exercise-page { page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 12px !important; }
+      .generating-pdf .print-card { background: #FFFFFF !important; border: 1px solid #CBD5E1 !important; color: #000000 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; padding: 10px 14px !important; gap: 6px !important; }
       .generating-pdf .bg-\\[\\#1a1a1a\\]\\/80, .generating-pdf .bg-\\[\\#1a1a1a\\]\\/85 { background: #FFFFFF !important; border: 1px solid #CBD5E1 !important; color: #000000 !important; box-shadow: none !important; }
       .generating-pdf h2, .generating-pdf h3, .generating-pdf h4, .generating-pdf span, .generating-pdf p, .generating-pdf div { color: #0F172A !important; }
       .generating-pdf .text-white { color: #0F172A !important; }
       .generating-pdf .text-club-red { color: #E11D48 !important; }
       .generating-pdf .text-\\[\\#94A3B8\\] { color: #475569 !important; }
-      .generating-pdf .print-badge { background: #F8FAFC !important; border: 1px solid #E2E8F0 !important; color: #0F172A !important; padding: 3px 8px !important; }
-      .generating-pdf .print-court { border: 1px solid #CBD5E1 !important; background: #F8FAFC !important; min-height: auto !important; max-height: 220px !important; padding: 4px !important; }
-      .generating-pdf .print-court img { max-height: 200px !important; width: auto !important; margin: 0 auto !important; object-fit: contain !important; }
-      .generating-pdf .print-text { color: #1E293B !important; font-size: 11px !important; line-height: 1.35 !important; }
-      .generating-pdf .print-title { color: #000000 !important; font-size: 15px !important; line-height: 1.2 !important; }
-      .generating-pdf .gap-6 { gap: 10px !important; }
-      .generating-pdf .gap-5 { gap: 8px !important; }
-      .generating-pdf .p-6 { padding: 12px 16px !important; }
-      .generating-pdf .p-4 { padding: 8px 12px !important; }
-      .generating-pdf .p-3 { padding: 6px 10px !important; }
+      .generating-pdf .print-badge { background: #F8FAFC !important; border: 1px solid #E2E8F0 !important; color: #0F172A !important; padding: 2px 6px !important; }
+      .generating-pdf .print-court { border: 1px solid #CBD5E1 !important; background: #F8FAFC !important; min-height: auto !important; max-height: 180px !important; padding: 4px !important; }
+      .generating-pdf .print-court img { max-height: 170px !important; width: auto !important; margin: 0 auto !important; object-fit: contain !important; }
+      .generating-pdf .print-text { color: #1E293B !important; font-size: 10.5px !important; line-height: 1.3 !important; }
+      .generating-pdf .print-title { color: #000000 !important; font-size: 13px !important; line-height: 1.2 !important; }
+      .generating-pdf .gap-6 { gap: 8px !important; }
+      .generating-pdf .gap-5 { gap: 6px !important; }
+      .generating-pdf .gap-4 { gap: 6px !important; }
+      .generating-pdf .gap-8 { gap: 10px !important; }
+      .generating-pdf .p-6 { padding: 10px 14px !important; }
+      .generating-pdf .p-4 { padding: 6px 10px !important; }
+      .generating-pdf .p-3 { padding: 4px 8px !important; }
       .generating-pdf .no-print { display: none !important; }
     </style>
 
@@ -3768,7 +3770,7 @@ function exportSessionToPDF() {
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true, logging: false },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'], before: '.pdf-exercise-page', avoid: '.pdf-exercise-page' }
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['.pdf-exercise-page', '.print-card'] }
   };
 
   html2pdf().set(opt).from(element).save().then(() => {
