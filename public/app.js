@@ -3423,6 +3423,7 @@ function renderSessionShow(session) {
         body { background: #FFFFFF !important; color: #000000 !important; font-size: 11px !important; }
         main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
         .pdf-exercise-page { page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 14px !important; }
+        .pdf-phase-header { page-break-after: avoid !important; break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
         .print-card { background: #FFFFFF !important; border: 1px solid #CBD5E1 !important; color: #000000 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; padding: 12px 16px !important; }
         .print-title { color: #000000 !important; font-size: 13px !important; }
         .print-text { color: #1E293B !important; font-size: 10.5px !important; line-height: 1.3 !important; }
@@ -3432,6 +3433,7 @@ function renderSessionShow(session) {
       }
       .generating-pdf { background: #FFFFFF !important; color: #000000 !important; font-family: 'Plus Jakarta Sans', sans-serif !important; padding: 8px 12px !important; }
       .generating-pdf .pdf-exercise-page { page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 12px !important; }
+      .generating-pdf .pdf-phase-header { page-break-after: avoid !important; break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
       .generating-pdf .print-card { background: #FFFFFF !important; border: 1px solid #CBD5E1 !important; color: #000000 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; padding: 10px 14px !important; gap: 6px !important; }
       .generating-pdf .bg-\\[\\#1a1a1a\\]\\/80, .generating-pdf .bg-\\[\\#1a1a1a\\]\\/85 { background: #FFFFFF !important; border: 1px solid #CBD5E1 !important; color: #000000 !important; box-shadow: none !important; }
       .generating-pdf h2, .generating-pdf h3, .generating-pdf h4, .generating-pdf span, .generating-pdf p, .generating-pdf div { color: #0F172A !important; }
@@ -3527,7 +3529,7 @@ function renderSessionShow(session) {
           <!-- 1. Calentamiento Block -->
           ${calentamientoTasks.length > 0 ? `
             <div class="flex flex-col gap-4">
-              <div class="flex items-center gap-3 border-b border-white/8 pb-2">
+              <div class="pdf-phase-header flex items-center gap-3 border-b border-white/8 pb-2">
                 <span class="text-xl no-print">🔥</span>
                 <h3 class="font-outfit font-extrabold text-sm uppercase text-white tracking-wider print-title">1. Calentamiento (Activación)</h3>
                 <span class="text-xs text-[#94A3B8] font-bold font-outfit uppercase ml-auto bg-white/3 px-2 py-0.5 rounded print-badge">
@@ -3552,7 +3554,7 @@ function renderSessionShow(session) {
           <!-- 2. Parte Principal Block -->
           ${partePrincipalTasks.length > 0 ? `
             <div class="flex flex-col gap-4">
-              <div class="flex items-center gap-3 border-b border-white/8 pb-2">
+              <div class="pdf-phase-header flex items-center gap-3 border-b border-white/8 pb-2">
                 <span class="text-xl no-print">⚽</span>
                 <h3 class="font-outfit font-extrabold text-sm uppercase text-white tracking-wider print-title">2. Parte Principal</h3>
                 <span class="text-xs text-[#94A3B8] font-bold font-outfit uppercase ml-auto bg-white/3 px-2 py-0.5 rounded print-badge">
@@ -3576,8 +3578,8 @@ function renderSessionShow(session) {
 
           <!-- 3. Vuelta a la Calma Block -->
           ${vueltaCalmaTasks.length > 0 ? `
-            <div class="flex flex-col gap-4">
-              <div class="flex items-center gap-3 border-b border-white/8 pb-2">
+            <div class="pdf-exercise-page flex flex-col gap-3">
+              <div class="pdf-phase-header flex items-center gap-3 border-b border-white/8 pb-2">
                 <span class="text-xl no-print">🧘</span>
                 <h3 class="font-outfit font-extrabold text-sm uppercase text-white tracking-wider print-title">3. Vuelta a la Calma</h3>
                 <span class="text-xs text-[#94A3B8] font-bold font-outfit uppercase ml-auto bg-white/3 px-2 py-0.5 rounded print-badge">
@@ -3587,7 +3589,7 @@ function renderSessionShow(session) {
 
               <div class="flex flex-col gap-4">
                 ${vueltaCalmaTasks.map((t, idx) => `
-                  <div class="pdf-exercise-page flex flex-col gap-2">
+                  <div class="flex flex-col gap-2">
                     <div class="flex items-center justify-between px-4 py-1.5 bg-[#1a1a1a]/40 border border-white/5 rounded-xl text-[10px] uppercase font-bold text-[#94A3B8] print-badge">
                       <span>Vuelta a la Calma #${idx + 1}</span>
                       <span>⏱️ ${t.pivotDuration || 10} min</span>
