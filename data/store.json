@@ -1612,30 +1612,8 @@
     ]
   },
   "matches": {
-    "filial": [
-      {
-        "id": "match_1",
-        "team": "filial",
-        "rival": "CD Calpe Futsal",
-        "fecha": "2026-09-20",
-        "hora": "18:00",
-        "competicion": "Liga Regular - Jornada 1",
-        "localizacion": "Pabellón Camilo Cano (La Nucía)",
-        "resultado": "4 - 2"
-      }
-    ],
-    "juvenil": [
-      {
-        "id": "match_2",
-        "team": "juvenil",
-        "rival": "Denia Futsal Juvenil",
-        "fecha": "2026-09-21",
-        "hora": "12:00",
-        "competicion": "Liga Juvenil Autonómica",
-        "localizacion": "Pabellón Municipal Denia",
-        "resultado": "3 - 1"
-      }
-    ]
+    "filial": [],
+    "juvenil": []
   },
   "videos": {
     "filial": [],

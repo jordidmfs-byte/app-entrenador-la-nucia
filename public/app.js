@@ -247,6 +247,14 @@ async function fetchState(silent = false) {
       if (!newStore.matches.filial) newStore.matches.filial = [];
       if (!newStore.matches.juvenil) newStore.matches.juvenil = [];
 
+      try {
+        const deletedMatchIds = JSON.parse(localStorage.getItem('lanucia_deleted_matches') || '[]');
+        if (Array.isArray(deletedMatchIds) && deletedMatchIds.length > 0) {
+          newStore.matches.filial = (newStore.matches.filial || []).filter(m => !deletedMatchIds.includes(String(m.id)));
+          newStore.matches.juvenil = (newStore.matches.juvenil || []).filter(m => !deletedMatchIds.includes(String(m.id)));
+        }
+      } catch(e) {}
+
       if (!newStore.videos) newStore.videos = { filial: [], juvenil: [] };
       if (!newStore.videos.filial) newStore.videos.filial = [];
       if (!newStore.videos.juvenil) newStore.videos.juvenil = [];
@@ -4176,6 +4184,14 @@ async function handleSaveMatch(e) {
 async function deleteMatch(id) {
   if (!confirm('¿Seguro que deseas eliminar este partido?')) return;
   const team = appState.activeTeam || 'filial';
+
+  try {
+    const deletedMatchIds = JSON.parse(localStorage.getItem('lanucia_deleted_matches') || '[]');
+    if (!deletedMatchIds.includes(String(id))) {
+      deletedMatchIds.push(String(id));
+      localStorage.setItem('lanucia_deleted_matches', JSON.stringify(deletedMatchIds));
+    }
+  } catch(e) {}
 
   if (!appState.matches) appState.matches = { filial: [], juvenil: [] };
   if (appState.matches[team]) {
