@@ -4105,7 +4105,15 @@ function openMatchModal(matchToEdit = null) {
       </div>
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Pabellón / Localización</label>
-        <input type="text" id="m-localizacion" value="${isEdit ? (matchToEdit.localizacion || 'Pabellón Camilo Cano (La Nucía)') : 'Pabellón Camilo Cano (La Nucía)'}" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+        <select id="m-localizacion" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs cursor-pointer focus:border-club-red">
+          <option value="Pabellón Camilo Cano" ${(!isEdit || (matchToEdit.localizacion && matchToEdit.localizacion.includes('Camilo Cano'))) ? 'selected' : ''}>Pabellón Camilo Cano</option>
+          <option value="Pabellón Muixara" ${(isEdit && matchToEdit.localizacion && matchToEdit.localizacion.includes('Muixara')) ? 'selected' : ''}>Pabellón Muixara</option>
+          <option value="Pabellón Benidorm" ${(isEdit && matchToEdit.localizacion && matchToEdit.localizacion.includes('Benidorm')) ? 'selected' : ''}>Pabellón Benidorm</option>
+          <option value="Pabellón Rival" ${(isEdit && matchToEdit.localizacion && matchToEdit.localizacion.includes('Rival')) ? 'selected' : ''}>Pabellón Rival</option>
+          ${isEdit && matchToEdit.localizacion && !['Pabellón Camilo Cano', 'Pabellón Muixara', 'Pabellón Benidorm', 'Pabellón Rival'].includes(matchToEdit.localizacion) && !matchToEdit.localizacion.includes('Camilo Cano') && !matchToEdit.localizacion.includes('Muixara') && !matchToEdit.localizacion.includes('Benidorm') && !matchToEdit.localizacion.includes('Rival') ? `
+            <option value="${matchToEdit.localizacion}" selected>${matchToEdit.localizacion}</option>
+          ` : ''}
+        </select>
       </div>
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Resultado (Opcional)</label>
