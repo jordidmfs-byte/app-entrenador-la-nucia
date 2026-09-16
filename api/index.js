@@ -113,6 +113,10 @@ module.exports = async (req, res) => {
   req.on('end', async () => {
     try {
       const parsed = body ? JSON.parse(body) : {};
+      if (parsedUrl.query) {
+        if (parsedUrl.query.id && !parsed.id) parsed.id = parsedUrl.query.id;
+        if (parsedUrl.query.team && !parsed.team) parsed.team = parsedUrl.query.team;
+      }
       const store = await loadStore();
 
       if (route === 'state' && req.method === 'POST') {
@@ -136,7 +140,7 @@ module.exports = async (req, res) => {
         const team = parsed.team || 'filial';
         if (!store.players[team]) store.players[team] = [];
         if (parsed.id) {
-          const idx = store.players[team].findIndex(p => p.id === parsed.id);
+          const idx = store.players[team].findIndex(p => String(p.id) === String(parsed.id));
           if (idx >= 0) store.players[team][idx] = parsed;
           else store.players[team].push(parsed);
         } else {
@@ -149,10 +153,10 @@ module.exports = async (req, res) => {
         return;
       }
 
-      if (route === 'players/delete' && req.method === 'POST') {
+      if ((route === 'players' && req.method === 'DELETE') || (route === 'players/delete' && (req.method === 'POST' || req.method === 'DELETE'))) {
         const team = parsed.team || 'filial';
-        if (store.players[team]) {
-          store.players[team] = store.players[team].filter(p => p.id !== parsed.id);
+        if (store.players && store.players[team]) {
+          store.players[team] = store.players[team].filter(p => String(p.id) !== String(parsed.id));
           await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -163,7 +167,7 @@ module.exports = async (req, res) => {
       if (route === 'tasks' && req.method === 'POST') {
         if (!store.tasks) store.tasks = [];
         if (parsed.id) {
-          const idx = store.tasks.findIndex(t => t.id === parsed.id);
+          const idx = store.tasks.findIndex(t => String(t.id) === String(parsed.id));
           if (idx >= 0) store.tasks[idx] = parsed;
           else store.tasks.push(parsed);
         } else {
@@ -176,9 +180,9 @@ module.exports = async (req, res) => {
         return;
       }
 
-      if (route === 'tasks/delete' && req.method === 'POST') {
+      if ((route === 'tasks' && req.method === 'DELETE') || (route === 'tasks/delete' && (req.method === 'POST' || req.method === 'DELETE'))) {
         if (store.tasks) {
-          store.tasks = store.tasks.filter(t => t.id !== parsed.id);
+          store.tasks = store.tasks.filter(t => String(t.id) !== String(parsed.id));
           await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -190,7 +194,7 @@ module.exports = async (req, res) => {
         const team = parsed.team || 'filial';
         if (!store.sessions[team]) store.sessions[team] = [];
         if (parsed.id) {
-          const idx = store.sessions[team].findIndex(s => s.id === parsed.id);
+          const idx = store.sessions[team].findIndex(s => String(s.id) === String(parsed.id));
           if (idx >= 0) store.sessions[team][idx] = parsed;
           else store.sessions[team].push(parsed);
         } else {
@@ -203,10 +207,10 @@ module.exports = async (req, res) => {
         return;
       }
 
-      if (route === 'sessions/delete' && req.method === 'POST') {
+      if ((route === 'sessions' && req.method === 'DELETE') || (route === 'sessions/delete' && (req.method === 'POST' || req.method === 'DELETE'))) {
         const team = parsed.team || 'filial';
-        if (store.sessions[team]) {
-          store.sessions[team] = store.sessions[team].filter(s => s.id !== parsed.id);
+        if (store.sessions && store.sessions[team]) {
+          store.sessions[team] = store.sessions[team].filter(s => String(s.id) !== String(parsed.id));
           await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -243,7 +247,7 @@ module.exports = async (req, res) => {
         const team = parsed.team || 'filial';
         if (!store.matches[team]) store.matches[team] = [];
         if (parsed.id) {
-          const idx = store.matches[team].findIndex(m => m.id === parsed.id);
+          const idx = store.matches[team].findIndex(m => String(m.id) === String(parsed.id));
           if (idx >= 0) store.matches[team][idx] = parsed;
           else store.matches[team].push(parsed);
         } else {
@@ -256,10 +260,10 @@ module.exports = async (req, res) => {
         return;
       }
 
-      if (route === 'matches/delete' && req.method === 'POST') {
+      if ((route === 'matches' && req.method === 'DELETE') || (route === 'matches/delete' && (req.method === 'POST' || req.method === 'DELETE'))) {
         const team = parsed.team || 'filial';
-        if (store.matches[team]) {
-          store.matches[team] = store.matches[team].filter(m => m.id !== parsed.id);
+        if (store.matches && store.matches[team]) {
+          store.matches[team] = store.matches[team].filter(m => String(m.id) !== String(parsed.id));
           await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -271,7 +275,7 @@ module.exports = async (req, res) => {
         const team = parsed.team || 'filial';
         if (!store.videos[team]) store.videos[team] = [];
         if (parsed.id) {
-          const idx = store.videos[team].findIndex(v => v.id === parsed.id);
+          const idx = store.videos[team].findIndex(v => String(v.id) === String(parsed.id));
           if (idx >= 0) store.videos[team][idx] = parsed;
           else store.videos[team].push(parsed);
         } else {
@@ -284,10 +288,10 @@ module.exports = async (req, res) => {
         return;
       }
 
-      if (route === 'videos/delete' && req.method === 'POST') {
+      if ((route === 'videos' && req.method === 'DELETE') || (route === 'videos/delete' && (req.method === 'POST' || req.method === 'DELETE'))) {
         const team = parsed.team || 'filial';
-        if (store.videos[team]) {
-          store.videos[team] = store.videos[team].filter(v => v.id !== parsed.id);
+        if (store.videos && store.videos[team]) {
+          store.videos[team] = store.videos[team].filter(v => String(v.id) !== String(parsed.id));
           await saveStore(store);
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });

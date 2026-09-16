@@ -128,52 +128,39 @@ async function fetchState(silent = false) {
     }
 
     if (newStore) {
-      if (initData) {
-        if (!newStore.tasks || newStore.tasks.length === 0) {
-          newStore.tasks = initData.tasks || [];
-        } else {
-          newStore.tasks.forEach(t => {
-            if (!t.grafico && initialGraphicsMap[t.id]) {
-              t.grafico = initialGraphicsMap[t.id];
-            }
-          });
-          const rondoInServer = newStore.tasks.some(t => (t.nombre || '').toLowerCase().includes('rondo'));
-          if (!rondoInServer && initData.tasks) {
-            const rondoInInit = initData.tasks.find(t => (t.nombre || '').toLowerCase().includes('rondo'));
-            if (rondoInInit) newStore.tasks.unshift(rondoInInit);
+      if (!newStore.tasks) {
+        newStore.tasks = (initData && initData.tasks) ? initData.tasks : [];
+      } else {
+        newStore.tasks.forEach(t => {
+          if (!t.grafico && initialGraphicsMap[t.id]) {
+            t.grafico = initialGraphicsMap[t.id];
           }
-        }
-        if (!newStore.players) newStore.players = { filial: [], juvenil: [] };
-        if (!newStore.players.filial || newStore.players.filial.length === 0) newStore.players.filial = initData.players.filial || [];
-        if (!newStore.players.juvenil || newStore.players.juvenil.length === 0) newStore.players.juvenil = initData.players.juvenil || [];
-
-        if (!newStore.sessions) newStore.sessions = { filial: [], juvenil: [] };
-        if (!newStore.sessions.filial || newStore.sessions.filial.length === 0) newStore.sessions.filial = initData.sessions.filial || [];
-        if (!newStore.sessions.juvenil || newStore.sessions.juvenil.length === 0) newStore.sessions.juvenil = initData.sessions.juvenil || [];
-
-        if (!newStore.matches) newStore.matches = { filial: [], juvenil: [] };
-        if (!newStore.matches.filial || newStore.matches.filial.length === 0) newStore.matches.filial = initData.matches.filial || [];
-        if (!newStore.matches.juvenil || newStore.matches.juvenil.length === 0) newStore.matches.juvenil = initData.matches.juvenil || [];
-
-        if (!newStore.videos) newStore.videos = { filial: [], juvenil: [] };
-        if (!newStore.videos.filial || newStore.videos.filial.length === 0) newStore.videos.filial = initData.videos.filial || [];
-        if (!newStore.videos.juvenil || newStore.videos.juvenil.length === 0) newStore.videos.juvenil = initData.videos.juvenil || [];
-
-        if (!newStore.attendances) newStore.attendances = { filial: {}, juvenil: {} };
-        if (!newStore.attendances.filial || Object.keys(newStore.attendances.filial).length === 0) newStore.attendances.filial = initData.attendances.filial || {};
-        if (!newStore.attendances.juvenil || Object.keys(newStore.attendances.juvenil).length === 0) newStore.attendances.juvenil = initData.attendances.juvenil || {};
-
-        if (!newStore.ratings) newStore.ratings = { filial: {}, juvenil: {} };
-        if (!newStore.ratings.filial || Object.keys(newStore.ratings.filial).length === 0) newStore.ratings.filial = initData.ratings.filial || {};
-        if (!newStore.ratings.juvenil || Object.keys(newStore.ratings.juvenil).length === 0) newStore.ratings.juvenil = initData.ratings.juvenil || {};
+        });
       }
 
       if (!newStore.players) newStore.players = { filial: [], juvenil: [] };
-      if (!newStore.ratings) newStore.ratings = { filial: {}, juvenil: {} };
-      if (!newStore.attendances) newStore.attendances = { filial: {}, juvenil: {} };
+      if (!newStore.players.filial) newStore.players.filial = [];
+      if (!newStore.players.juvenil) newStore.players.juvenil = [];
+
       if (!newStore.sessions) newStore.sessions = { filial: [], juvenil: [] };
+      if (!newStore.sessions.filial) newStore.sessions.filial = [];
+      if (!newStore.sessions.juvenil) newStore.sessions.juvenil = [];
+
       if (!newStore.matches) newStore.matches = { filial: [], juvenil: [] };
+      if (!newStore.matches.filial) newStore.matches.filial = [];
+      if (!newStore.matches.juvenil) newStore.matches.juvenil = [];
+
       if (!newStore.videos) newStore.videos = { filial: [], juvenil: [] };
+      if (!newStore.videos.filial) newStore.videos.filial = [];
+      if (!newStore.videos.juvenil) newStore.videos.juvenil = [];
+
+      if (!newStore.attendances) newStore.attendances = { filial: {}, juvenil: {} };
+      if (!newStore.attendances.filial) newStore.attendances.filial = {};
+      if (!newStore.attendances.juvenil) newStore.attendances.juvenil = {};
+
+      if (!newStore.ratings) newStore.ratings = { filial: {}, juvenil: {} };
+      if (!newStore.ratings.filial) newStore.ratings.filial = {};
+      if (!newStore.ratings.juvenil) newStore.ratings.juvenil = {};
 
       const prevJson = JSON.stringify(appState);
       const nextJson = JSON.stringify(newStore);
