@@ -20,6 +20,86 @@ let taskFilterFase = 'all';
 let taskSearchQuery = '';
 let selectedWeekStart = null;
 
+// Rivales Oficiales de Calendarios de Competición FFCV 2026-2027
+const RIVAL_LISTS = {
+  filial: [
+    'Sp. San Vicente - Hércules F.S. "B"',
+    'C.F.S. Dianense "A"',
+    'Alonis Villajoyosa Futsal C.D. "A"',
+    'Serelles Alcoy C.F.S. "B"',
+    'R.C. Dinamita - Albatera F.S. "B"',
+    'C.F.S. Futsal Ibi "B"',
+    'C.D. At. Torrevieja F.S.',
+    'C.F.S. Mirrense "A"',
+    'C.F.S. San Blas Sax "A"',
+    'U.D. La Hoya de Elche C.F. "A"',
+    'Ye Faky F.S. "B"',
+    'Club Mutxamel Benifutsal "A"',
+    'C.D. Salesianos Villena'
+  ],
+  juvenil: [
+    'Alboraya F.S. "A"',
+    'C.D. Santo Tomás de Villanueva "A"',
+    'C.D. Paidos Dénia "A"',
+    'C.F.S. At. Moncadense "A"',
+    'C.F.S. Castalla',
+    'C.F.S. Riba - Roja "A"',
+    'F.S.F. Joventut d\'Elx "A"',
+    'Maristas Cullera',
+    'Novelda C.F. "A"',
+    'Nueva Elda F.S. "B"',
+    'Pinoso Atlethic F.S. "A"',
+    'S.D. Col. El Pilar Valencia de la FEMDL "B"',
+    'Valencia F.S. "A"'
+  ]
+};
+
+function getRivalsForTeam(team) {
+  return RIVAL_LISTS[team] || RIVAL_LISTS.filial;
+}
+
+function handleRivalSearchInput(val, team, listContainerId, inputId) {
+  const container = document.getElementById(listContainerId);
+  if (!container) return;
+  const rivals = getRivalsForTeam(team);
+  const q = (val || '').trim().toLowerCase();
+  const matches = rivals.filter(r => r.toLowerCase().includes(q));
+
+  if (matches.length === 0) {
+    container.innerHTML = `
+      <div class="p-2.5 text-[11px] text-slate-400 italic">No coincide ningún rival del calendario oficial.</div>
+    `;
+    container.classList.remove('hidden');
+    return;
+  }
+
+  container.innerHTML = matches.map(r => `
+    <div onclick="selectRivalOption('${r.replace(/'/g, "\\'")}', '${inputId}', '${listContainerId}')"
+         class="px-3 py-2 text-xs text-white hover:bg-club-red/20 hover:text-club-red cursor-pointer border-b border-white/5 last:border-0 flex items-center justify-between transition-colors">
+      <span class="font-medium">${r}</span>
+      <span class="text-[9px] uppercase font-bold text-[#94A3B8] bg-white/5 px-1.5 py-0.5 rounded">Calendario FFCV</span>
+    </div>
+  `).join('');
+  container.classList.remove('hidden');
+}
+
+function selectRivalOption(rivalName, inputId, listContainerId) {
+  const input = document.getElementById(inputId);
+  if (input) {
+    input.value = rivalName;
+  }
+  const container = document.getElementById(listContainerId);
+  if (container) {
+    container.classList.add('hidden');
+  }
+}
+
+function showAllRivalsDropdown(team, listContainerId, inputId) {
+  const input = document.getElementById(inputId);
+  const currentVal = input ? input.value : '';
+  handleRivalSearchInput(currentVal, team, listContainerId, inputId);
+}
+
 // Tactical Board Global State for Task Creation
 let boardInitialTokens = [];
 let boardTokens = [];
@@ -3816,10 +3896,28 @@ async function deleteSession(id) {
 // ====================================================
 // VIEW 6: PARTIDOS
 // ====================================================
+let matchSearchQuery = '';
+
+function handleMatchSearch(val) {
+  matchSearchQuery = (val || '').toLowerCase();
+  renderView();
+}
+
+function clearMatchSearch() {
+  matchSearchQuery = '';
+  renderView();
+}
+
 function renderMatches() {
   const team = appState.activeTeam || 'filial';
   const teamName = team === 'filial' ? 'Filial Sporting La Nucía' : 'Juvenil La Nucía FS';
-  const matches = appState.matches[team] || [];
+  const rawMatches = appState.matches[team] || [];
+  const matches = rawMatches.filter(m => {
+    if (!matchSearchQuery) return true;
+    return (m.rival || '').toLowerCase().includes(matchSearchQuery) ||
+           (m.competicion || '').toLowerCase().includes(matchSearchQuery) ||
+           (m.localizacion || '').toLowerCase().includes(matchSearchQuery);
+  });
 
   return `
     <div class="flex flex-col gap-6">
@@ -3833,11 +3931,29 @@ function renderMatches() {
               ${matches.length} Partidos
             </span>
           </div>
-          <p class="text-xs text-[#94A3B8] mt-0.5">Calendario de partidos, resultados y rivales.</p>
+          <p class="text-xs text-[#94A3B8] mt-0.5">Calendario de partidos, resultados y rivales oficiales FFCV.</p>
         </div>
         <button onclick="openNewMatchModal()" class="inline-flex items-center gap-2 font-outfit font-bold text-xs uppercase px-5 py-3 rounded-xl bg-club-red hover:bg-club-red-hover text-white transition-all shadow-lg shadow-club-red/20">
           ➕ Añadir Partido
         </button>
+      </div>
+
+      <!-- Search & Filter Bar by Rival -->
+      <div class="bg-[#1a1a1a]/60 border border-white/8 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between shadow-xl">
+        <div class="flex-grow max-w-md w-full relative">
+          <input type="text" id="match-search-input" value="${matchSearchQuery}" placeholder="Buscar partido por rival..."
+                 oninput="handleMatchSearch(this.value)"
+                 class="bg-black/30 border border-white/8 rounded-xl pl-10 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-club-red focus:ring-1 focus:ring-club-red transition-all duration-300 w-full">
+          <span class="absolute left-3.5 top-3 text-[#94A3B8]/50 text-xs">🔍</span>
+        </div>
+        
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          ${matchSearchQuery ? `
+            <button type="button" onclick="clearMatchSearch()" class="font-outfit font-bold text-xs uppercase px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white transition-colors duration-200">
+              Limpiar Filtro
+            </button>
+          ` : ''}
+        </div>
       </div>
 
       ${matches.length === 0 ? `
@@ -3914,9 +4030,26 @@ function openMatchModal(matchToEdit = null) {
     </div>
     <form onsubmit="handleSaveMatch(event)" class="flex flex-col gap-3 text-xs">
       <input type="hidden" id="m-id" value="${isEdit ? matchToEdit.id : ''}">
-      <div>
-        <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Equipo Rival</label>
-        <input type="text" id="m-rival" required placeholder="Ej: CD Calpe Futsal" value="${isEdit ? (matchToEdit.rival || '') : ''}" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+      <div class="relative">
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-slate-300 font-bold uppercase text-[10px]">Equipo Rival (Calendario Oficial)</label>
+          <span class="text-[9px] text-[#94A3B8]">🔍 Escribe para filtrar o despliega</span>
+        </div>
+        <div class="relative flex items-center">
+          <input type="text" id="m-rival" required placeholder="Escribe para buscar rival o pulsa la flecha..."
+                 value="${isEdit ? (matchToEdit.rival || '') : ''}"
+                 autocomplete="off"
+                 onfocus="showAllRivalsDropdown('${team}', 'm-rival-dropdown', 'm-rival')"
+                 oninput="handleRivalSearchInput(this.value, '${team}', 'm-rival-dropdown', 'm-rival')"
+                 class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs pr-9 focus:border-club-red">
+          <button type="button" onclick="showAllRivalsDropdown('${team}', 'm-rival-dropdown', 'm-rival')"
+                  tabindex="-1"
+                  class="absolute right-2.5 text-slate-400 hover:text-white text-xs">
+            ▼
+          </button>
+        </div>
+        <div id="m-rival-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto bg-[#1a1a1a] border border-white/15 rounded-xl shadow-2xl z-50">
+        </div>
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
@@ -4061,6 +4194,11 @@ function renderVideos() {
               <div class="flex flex-col gap-3">
                 <div class="flex items-center justify-between">
                   <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/5 text-slate-400">${v.categoria || 'Táctico'}</span>
+                  ${v.rival ? `
+                    <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-club-red/10 border border-club-red/25 text-club-red">
+                      VS ${v.rival}
+                    </span>
+                  ` : ''}
                   <span class="text-xs text-[#94A3B8]">📅 ${v.fecha || 'Reciente'}</span>
                 </div>
                 <h3 class="font-outfit font-bold text-base text-white">${v.titulo}</h3>
@@ -4092,16 +4230,35 @@ function openNewVideoModal() {
     <form onsubmit="handleSaveVideo(event)" class="flex flex-col gap-3 text-xs">
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Título del vídeo</label>
-        <input type="text" id="v-titulo" required placeholder="Ej: Salida de presión rival vs Denia" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+        <input type="text" id="v-titulo" required placeholder="Ej: Salida de presión vs rival" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
       </div>
-      <div>
-        <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Categoría</label>
-        <select id="v-categoria" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
-          <option value="Scouting Rival">Scouting Rival</option>
-          <option value="Análisis Propio">Análisis Propio</option>
-          <option value="ABP Rival">ABP Rival</option>
-          <option value="Vídeo Sesión">Vídeo Sesión</option>
-        </select>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Categoría</label>
+          <select id="v-categoria" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+            <option value="Scouting Rival">Scouting Rival</option>
+            <option value="Análisis Propio">Análisis Propio</option>
+            <option value="ABP Rival">ABP Rival</option>
+            <option value="Vídeo Sesión">Vídeo Sesión</option>
+          </select>
+        </div>
+        <div class="relative">
+          <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Equipo Rival (Opcional)</label>
+          <div class="relative flex items-center">
+            <input type="text" id="v-rival" placeholder="Buscar o seleccionar rival..."
+                   autocomplete="off"
+                   onfocus="showAllRivalsDropdown('${team}', 'v-rival-dropdown', 'v-rival')"
+                   oninput="handleRivalSearchInput(this.value, '${team}', 'v-rival-dropdown', 'v-rival')"
+                   class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs pr-8 focus:border-club-red">
+            <button type="button" onclick="showAllRivalsDropdown('${team}', 'v-rival-dropdown', 'v-rival')"
+                    tabindex="-1"
+                    class="absolute right-2.5 text-slate-400 hover:text-white text-xs">
+              ▼
+            </button>
+          </div>
+          <div id="v-rival-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto bg-[#1a1a1a] border border-white/15 rounded-xl shadow-2xl z-50">
+          </div>
+        </div>
       </div>
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Enlace / URL</label>
@@ -4127,6 +4284,7 @@ async function handleSaveVideo(e) {
     team,
     titulo: document.getElementById('v-titulo').value,
     categoria: document.getElementById('v-categoria').value,
+    rival: document.getElementById('v-rival') ? document.getElementById('v-rival').value : '',
     url: document.getElementById('v-url').value,
     descripcion: document.getElementById('v-descripcion').value
   };
