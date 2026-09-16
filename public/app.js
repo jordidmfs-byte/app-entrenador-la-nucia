@@ -74,10 +74,11 @@ function handleRivalSearchInput(val, team, listContainerId, inputId) {
   }
 
   container.innerHTML = matches.map(r => `
-    <div onclick="selectRivalOption('${r.replace(/'/g, "\\'")}', '${inputId}', '${listContainerId}')"
-         class="px-3 py-2 text-xs text-white hover:bg-club-red/20 hover:text-club-red cursor-pointer border-b border-white/5 last:border-0 flex items-center justify-between transition-colors">
+    <div onmousedown="selectRivalOption('${r.replace(/'/g, "\\'")}', '${inputId}', '${listContainerId}')"
+         onclick="selectRivalOption('${r.replace(/'/g, "\\'")}', '${inputId}', '${listContainerId}')"
+         class="px-3 py-2.5 text-xs text-white hover:bg-club-red hover:text-white cursor-pointer border-b border-white/5 last:border-0 flex items-center justify-between transition-colors">
       <span class="font-medium">${r}</span>
-      <span class="text-[9px] uppercase font-bold text-[#94A3B8] bg-white/5 px-1.5 py-0.5 rounded">Calendario FFCV</span>
+      <span class="text-[9px] uppercase font-bold text-slate-300 bg-white/10 px-1.5 py-0.5 rounded">FFCV</span>
     </div>
   `).join('');
   container.classList.remove('hidden');
@@ -87,6 +88,12 @@ function selectRivalOption(rivalName, inputId, listContainerId) {
   const input = document.getElementById(inputId);
   if (input) {
     input.value = rivalName;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  const selectHelper = document.getElementById(inputId + '-select');
+  if (selectHelper) {
+    selectHelper.value = rivalName;
   }
   const container = document.getElementById(listContainerId);
   if (container) {
@@ -94,7 +101,17 @@ function selectRivalOption(rivalName, inputId, listContainerId) {
   }
 }
 
+function handleRivalSelectChange(selectElem, inputId, listContainerId) {
+  if (!selectElem || !selectElem.value) return;
+  selectRivalOption(selectElem.value, inputId, listContainerId);
+}
+
 function showAllRivalsDropdown(team, listContainerId, inputId) {
+  const container = document.getElementById(listContainerId);
+  if (container && !container.classList.contains('hidden')) {
+    container.classList.add('hidden');
+    return;
+  }
   const input = document.getElementById(inputId);
   const currentVal = input ? input.value : '';
   handleRivalSearchInput(currentVal, team, listContainerId, inputId);
@@ -4030,25 +4047,46 @@ function openMatchModal(matchToEdit = null) {
     </div>
     <form onsubmit="handleSaveMatch(event)" class="flex flex-col gap-3 text-xs">
       <input type="hidden" id="m-id" value="${isEdit ? matchToEdit.id : ''}">
-      <div class="relative">
-        <div class="flex items-center justify-between mb-1">
-          <label class="block text-slate-300 font-bold uppercase text-[10px]">Equipo Rival (Calendario Oficial)</label>
-          <span class="text-[9px] text-[#94A3B8]">🔍 Escribe para filtrar o despliega</span>
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center justify-between">
+          <label class="block text-slate-300 font-bold uppercase text-[10px]">Equipo Rival (Calendario Oficial FFCV)</label>
+          <span class="text-[9px] text-[#94A3B8]">Selecciona o busca</span>
         </div>
-        <div class="relative flex items-center">
-          <input type="text" id="m-rival" required placeholder="Escribe para buscar rival o pulsa la flecha..."
-                 value="${isEdit ? (matchToEdit.rival || '') : ''}"
-                 autocomplete="off"
-                 onfocus="showAllRivalsDropdown('${team}', 'm-rival-dropdown', 'm-rival')"
-                 oninput="handleRivalSearchInput(this.value, '${team}', 'm-rival-dropdown', 'm-rival')"
-                 class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs pr-9 focus:border-club-red">
-          <button type="button" onclick="showAllRivalsDropdown('${team}', 'm-rival-dropdown', 'm-rival')"
-                  tabindex="-1"
-                  class="absolute right-2.5 text-slate-400 hover:text-white text-xs">
-            ▼
-          </button>
+
+        <!-- Direct Select Dropdown from Official Calendar -->
+        <div>
+          <select id="m-rival-select" onchange="handleRivalSelectChange(this, 'm-rival', 'm-rival-dropdown')"
+                  class="w-full bg-[#1e1e1e] border border-white/15 rounded-xl px-3 py-2.5 text-white text-xs font-semibold focus:border-club-red focus:outline-none mb-1 cursor-pointer">
+            <option value="" class="bg-[#1a1a1a] text-slate-400">-- Selecciona rival del calendario oficial (${team.toUpperCase()}) --</option>
+            ${getRivalsForTeam(team).map(r => `
+              <option value="${r}" ${(isEdit && matchToEdit.rival === r) ? 'selected' : ''} class="bg-[#1a1a1a] text-white">
+                ⚽ ${r}
+              </option>
+            `).join('')}
+          </select>
         </div>
-        <div id="m-rival-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto bg-[#1a1a1a] border border-white/15 rounded-xl shadow-2xl z-50">
+
+        <!-- Searchable text input with dynamic autocomplete list & datalist -->
+        <div class="relative">
+          <div class="relative flex items-center">
+            <input type="text" id="m-rival" required list="m-rival-datalist"
+                   placeholder="O escribe aquí el nombre del rival..."
+                   value="${isEdit ? (matchToEdit.rival || '') : ''}"
+                   autocomplete="off"
+                   onfocus="showAllRivalsDropdown('${team}', 'm-rival-dropdown', 'm-rival')"
+                   oninput="handleRivalSearchInput(this.value, '${team}', 'm-rival-dropdown', 'm-rival')"
+                   class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs pr-9 focus:border-club-red">
+            <button type="button" onclick="showAllRivalsDropdown('${team}', 'm-rival-dropdown', 'm-rival')"
+                    tabindex="-1"
+                    class="absolute right-2.5 text-slate-400 hover:text-white text-xs">
+              🔍
+            </button>
+          </div>
+          <datalist id="m-rival-datalist">
+            ${getRivalsForTeam(team).map(r => `<option value="${r}">`).join('')}
+          </datalist>
+          <div id="m-rival-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto bg-[#1a1a1a] border border-white/20 rounded-xl shadow-2xl z-50">
+          </div>
         </div>
       </div>
       <div class="grid grid-cols-2 gap-2">
@@ -4242,21 +4280,33 @@ function openNewVideoModal() {
             <option value="Vídeo Sesión">Vídeo Sesión</option>
           </select>
         </div>
-        <div class="relative">
-          <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Equipo Rival (Opcional)</label>
+        <div class="flex flex-col gap-1">
+          <label class="block text-slate-300 mb-0.5 font-bold uppercase text-[10px]">Equipo Rival (Calendario Oficial)</label>
+          <select id="v-rival-select" onchange="handleRivalSelectChange(this, 'v-rival', 'v-rival-dropdown')"
+                  class="w-full bg-[#1e1e1e] border border-white/15 rounded-xl px-3 py-2 text-white text-xs font-semibold focus:border-club-red focus:outline-none mb-1 cursor-pointer">
+            <option value="" class="bg-[#1a1a1a] text-slate-400">-- Seleccionar rival oficial (${team.toUpperCase()}) --</option>
+            ${getRivalsForTeam(team).map(r => `
+              <option value="${r}" class="bg-[#1a1a1a] text-white">
+                ⚽ ${r}
+              </option>
+            `).join('')}
+          </select>
           <div class="relative flex items-center">
-            <input type="text" id="v-rival" placeholder="Buscar o seleccionar rival..."
-                   autocomplete="off"
+            <input type="text" id="v-rival" placeholder="O escribe para filtrar..."
+                   autocomplete="off" list="v-rival-datalist"
                    onfocus="showAllRivalsDropdown('${team}', 'v-rival-dropdown', 'v-rival')"
                    oninput="handleRivalSearchInput(this.value, '${team}', 'v-rival-dropdown', 'v-rival')"
                    class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs pr-8 focus:border-club-red">
             <button type="button" onclick="showAllRivalsDropdown('${team}', 'v-rival-dropdown', 'v-rival')"
                     tabindex="-1"
                     class="absolute right-2.5 text-slate-400 hover:text-white text-xs">
-              ▼
+              🔍
             </button>
           </div>
-          <div id="v-rival-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto bg-[#1a1a1a] border border-white/15 rounded-xl shadow-2xl z-50">
+          <datalist id="v-rival-datalist">
+            ${getRivalsForTeam(team).map(r => `<option value="${r}">`).join('')}
+          </datalist>
+          <div id="v-rival-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto bg-[#1a1a1a] border border-white/20 rounded-xl shadow-2xl z-50">
           </div>
         </div>
       </div>
