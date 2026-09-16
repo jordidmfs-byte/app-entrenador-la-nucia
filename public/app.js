@@ -2920,10 +2920,16 @@ function clearSessionSearch() {
 }
 
 function goToSessionSubView(view, id = null) {
+  currentView = 'sessions';
   sessionSubView = view;
   activeSessionId = id;
+  updateHeaderUI();
   renderView();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openNewSessionModal() {
+  goToSessionSubView('create');
 }
 
 function formatSpanishDate(dStr) {
