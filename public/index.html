@@ -109,15 +109,15 @@
 
       <!-- Quick Action / QR Tablet Connect & Team Switcher -->
       <div class="flex items-center gap-1.5 sm:gap-3">
-        <!-- Team Switcher (Filial vs Juvenil) -->
+        <!-- Team Switcher (Juvenil vs Filial) -->
         <div class="flex items-center bg-black/60 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-white/10 shadow-inner">
-          <button id="btn-team-filial" onclick="setTeam('filial')" class="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-outfit text-[11px] sm:text-xs font-extrabold uppercase transition-all duration-200">
-            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-            <span>Filial</span>
-          </button>
           <button id="btn-team-juvenil" onclick="setTeam('juvenil')" class="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-outfit text-[11px] sm:text-xs font-extrabold uppercase transition-all duration-200">
             <span class="w-2 h-2 rounded-full bg-blue-500"></span>
             <span>Juvenil</span>
+          </button>
+          <button id="btn-team-filial" onclick="setTeam('filial')" class="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-outfit text-[11px] sm:text-xs font-extrabold uppercase transition-all duration-200">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            <span>Filial</span>
           </button>
         </div>
       </div>

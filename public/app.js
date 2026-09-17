@@ -562,14 +562,18 @@ function renderDashboard() {
         </div>
         <div class="flex flex-col items-center text-center">
           <p class="text-[10px] text-[#94A3B8] uppercase tracking-[0.2em] font-semibold mb-1">${todayDisplay}</p>
-          <div class="flex items-center gap-3">
-            <div class="flex flex-col items-center">
-              <h2 class="font-outfit font-extrabold text-2xl sm:text-3xl text-white tracking-tight leading-none text-center">Centro Control</h2>
-              <h3 class="font-outfit font-extrabold text-lg sm:text-xl text-club-red tracking-wide mt-1.5 uppercase text-center w-full">Entrenador</h3>
-            </div>
-            <span class="self-start mt-0.5 px-2.5 py-0.5 rounded-full font-outfit text-xs font-black uppercase ${team === 'filial' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}">
-              ${teamBadge}
-            </span>
+          <div class="flex flex-col items-center">
+            <h2 class="font-outfit font-extrabold text-2xl sm:text-3xl text-white tracking-tight leading-none text-center">Centro Control</h2>
+            <h3 class="font-outfit font-extrabold text-lg sm:text-xl text-club-red tracking-wide mt-1.5 uppercase text-center w-full">Entrenador</h3>
+          </div>
+          <!-- Selector Juvenil / Filial en Página de Inicio -->
+          <div class="flex items-center gap-2 mt-2 bg-black/60 p-1 rounded-xl border border-white/10 shadow-inner">
+            <button onclick="setTeam('juvenil')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-outfit text-xs font-black uppercase transition-all ${team === 'juvenil' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40 ring-1 ring-blue-400' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
+              <span class="w-2 h-2 rounded-full ${team === 'juvenil' ? 'bg-white' : 'bg-blue-500'}"></span> Juvenil
+            </button>
+            <button onclick="setTeam('filial')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-outfit text-xs font-black uppercase transition-all ${team === 'filial' ? 'bg-club-red text-white shadow-lg shadow-club-red/40 ring-1 ring-red-400' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
+              <span class="w-2 h-2 rounded-full ${team === 'filial' ? 'bg-white' : 'bg-red-500'}"></span> Filial
+            </button>
           </div>
         </div>
       </div>
