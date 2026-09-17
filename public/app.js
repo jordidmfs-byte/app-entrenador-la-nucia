@@ -172,6 +172,10 @@ async function init() {
         appState = { ...appState, ...parsedCached };
       }
     }
+    const storedTeam = localStorage.getItem('lanucia_active_team');
+    if (storedTeam === 'filial' || storedTeam === 'juvenil') {
+      appState.activeTeam = storedTeam;
+    }
   } catch (e) {}
 
   // 2. Render inicial inmediato desde cache local o defaults
@@ -297,7 +301,13 @@ async function fetchState(silent = false) {
 
       if (!newStore.ratings) newStore.ratings = { filial: {}, juvenil: {} };
       if (!newStore.ratings.filial) newStore.ratings.filial = {};
-      if (!newStore.ratings.juvenil) newStore.ratings.juvenil = {};
+      // Mantener el equipo seleccionado por el usuario para que no vuelva automáticamente
+      const storedTeam = localStorage.getItem('lanucia_active_team');
+      if (storedTeam === 'filial' || storedTeam === 'juvenil') {
+        newStore.activeTeam = storedTeam;
+      } else if (appState.activeTeam) {
+        newStore.activeTeam = appState.activeTeam;
+      }
 
       const prevJson = JSON.stringify(appState);
       const nextJson = JSON.stringify(newStore);
@@ -400,20 +410,23 @@ function updateHeaderUI() {
 
 
 async function setTeam(team) {
-  if (appState.activeTeam === team) return;
+  if (team !== 'filial' && team !== 'juvenil') return;
   appState.activeTeam = team;
+  localStorage.setItem('lanucia_active_team', team);
+  saveStateToStorage();
   updateHeaderUI();
+  renderView();
+
   try {
     await fetch('/api/active-team', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ team })
     });
-    showNotification('Equipo cambiado a: ' + (team === 'filial' ? '🔴 FILIAL' : '🔵 JUVENIL'));
+    showNotification('Espacio: ' + (team === 'filial' ? '🔴 FILIAL' : '🔵 JUVENIL'));
   } catch(e) {
     console.error(e);
   }
-  renderView();
 }
 
 function navigate(view) {
