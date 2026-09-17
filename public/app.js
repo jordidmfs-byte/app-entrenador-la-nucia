@@ -136,6 +136,7 @@ let boardBackgroundImg = null;
 function saveStateToStorage() {
   try {
     if (!appState) return;
+    appState.updated_at = Date.now();
     const lightTasks = (appState.tasks || []).map(t => {
       const copy = { ...t };
       if (Number(copy.id) <= 50 && copy.grafico && copy.grafico.length > 500) {
@@ -156,25 +157,35 @@ function saveStateToStorage() {
 }
 
 // Initialize
-// Initialize
 async function init() {
   currentView = 'dashboard';
   if (window.location.hash) {
     history.replaceState(null, null, ' ');
   }
 
-  // 1. Render inicial inmediato desde cache local o defaults
+  // 1. Cargar datos locales de inmediato para disponibilidad instantánea sin esperar a red
+  try {
+    const cached = localStorage.getItem('lanucia_app_state');
+    if (cached) {
+      const parsedCached = JSON.parse(cached);
+      if (parsedCached && typeof parsedCached === 'object') {
+        appState = { ...appState, ...parsedCached };
+      }
+    }
+  } catch (e) {}
+
+  // 2. Render inicial inmediato desde cache local o defaults
   initWeekSelector();
   updateHeaderUI();
   renderView();
 
-  // 2. Cargar datos del servidor Cloud DB (Neon) y refrescar vista
+  // 3. Cargar datos del servidor Cloud DB (Neon) y sincronizar respetando cambios locales
   await fetchState(false);
   initWeekSelector();
   updateHeaderUI();
   renderView();
 
-  // 3. Polling en tiempo real cada 4 segundos para sincronización entre dispositivos
+  // 4. Polling en tiempo real cada 4 segundos para sincronización entre dispositivos
   if (!window.cloudSyncInterval) {
     window.cloudSyncInterval = setInterval(() => {
       fetchState(true);
@@ -209,18 +220,39 @@ async function fetchState(silent = false) {
       }
     } catch (e) {}
 
-    let newStore = serverData;
-
-    if (!newStore) {
+    // Leer cache local para proteger cambios confirmados por el usuario
+    let localCache = null;
+    try {
       const cached = localStorage.getItem('lanucia_app_state');
       if (cached) {
-        try {
-          newStore = JSON.parse(cached);
-        } catch (e) {}
+        localCache = JSON.parse(cached);
       }
-    }
+    } catch (e) {}
 
-    if (!newStore && initData) {
+    let newStore = null;
+
+    // Si el cache local tiene cambios más recientes que los del servidor (o el servidor no responde o está en blanco),
+    // el cache local tiene autoridad absoluta para que NINGÚN cambio confirmado se pierda.
+    const localUpdatedAt = (localCache && localCache.updated_at) ? Number(localCache.updated_at) : 0;
+    const serverUpdatedAt = (serverData && serverData.updated_at) ? Number(serverData.updated_at) : 0;
+
+    if (localCache && localUpdatedAt > serverUpdatedAt) {
+      newStore = localCache;
+      // Enviar de forma asíncrona la versión más reciente al servidor para mantenerlo al día si es posible
+      if (serverData !== null) {
+        try {
+          fetch('/api/state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localCache)
+          }).catch(() => {});
+        } catch(e) {}
+      }
+    } else if (serverData) {
+      newStore = serverData;
+    } else if (localCache) {
+      newStore = localCache;
+    } else if (initData) {
       newStore = initData;
     }
 
