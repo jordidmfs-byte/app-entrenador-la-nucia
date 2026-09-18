@@ -184,6 +184,19 @@ async function init() {
     if (appState.players && appState.players.juvenil) {
       appState.players.juvenil = appState.players.juvenil.filter(p => !deletedPlayerIds.includes(String(p.id)) && !(p.nombre + ' ' + (p.apellidos||'')).toLowerCase().includes('nicolas'));
     }
+
+    const defaultDeletedSessions = ["sess_1","sess_2"];
+    const deletedSessionIds = JSON.parse(localStorage.getItem('lanucia_deleted_sessions') || JSON.stringify(defaultDeletedSessions));
+    if (appState.sessions) {
+      if (appState.sessions.filial) appState.sessions.filial = appState.sessions.filial.filter(s => !deletedSessionIds.includes(String(s.id)));
+      if (appState.sessions.juvenil) appState.sessions.juvenil = appState.sessions.juvenil.filter(s => !deletedSessionIds.includes(String(s.id)));
+    }
+
+    const defaultDeletedTasks = ["51"];
+    const deletedTaskIds = JSON.parse(localStorage.getItem('lanucia_deleted_tasks') || JSON.stringify(defaultDeletedTasks));
+    if (appState.tasks) {
+      appState.tasks = appState.tasks.filter(t => !deletedTaskIds.includes(String(t.id)));
+    }
   } catch (e) {}
 
   // 2. Render inicial inmediato desde cache local o defaults
@@ -279,6 +292,13 @@ async function fetchState(silent = false) {
         });
       }
 
+      try {
+        const deletedTaskIds = JSON.parse(localStorage.getItem('lanucia_deleted_tasks') || '["51"]');
+        if (Array.isArray(deletedTaskIds) && deletedTaskIds.length > 0) {
+          newStore.tasks = (newStore.tasks || []).filter(t => !deletedTaskIds.includes(String(t.id)));
+        }
+      } catch(e) {}
+
       if (!newStore.players) newStore.players = { filial: [], juvenil: [] };
       if (!newStore.players.filial) newStore.players.filial = [];
       if (!newStore.players.juvenil) newStore.players.juvenil = [];
@@ -294,6 +314,14 @@ async function fetchState(silent = false) {
       if (!newStore.sessions) newStore.sessions = { filial: [], juvenil: [] };
       if (!newStore.sessions.filial) newStore.sessions.filial = [];
       if (!newStore.sessions.juvenil) newStore.sessions.juvenil = [];
+
+      try {
+        const deletedSessionIds = JSON.parse(localStorage.getItem('lanucia_deleted_sessions') || '["sess_1","sess_2"]');
+        if (Array.isArray(deletedSessionIds) && deletedSessionIds.length > 0) {
+          newStore.sessions.filial = (newStore.sessions.filial || []).filter(s => !deletedSessionIds.includes(String(s.id)));
+          newStore.sessions.juvenil = (newStore.sessions.juvenil || []).filter(s => !deletedSessionIds.includes(String(s.id)));
+        }
+      } catch(e) {}
 
       if (!newStore.matches) newStore.matches = { filial: [], juvenil: [] };
       if (!newStore.matches.filial) newStore.matches.filial = [];
@@ -1595,6 +1623,13 @@ async function confirmDeleteTask(taskId, taskName) {
   }
   if (!appState.tasks) appState.tasks = [];
   appState.tasks = appState.tasks.filter(t => String(t.id) !== String(taskId));
+  try {
+    const deletedTaskIds = JSON.parse(localStorage.getItem('lanucia_deleted_tasks') || '["51"]');
+    if (!deletedTaskIds.includes(String(taskId))) {
+      deletedTaskIds.push(String(taskId));
+      localStorage.setItem('lanucia_deleted_tasks', JSON.stringify(deletedTaskIds));
+    }
+  } catch(e) {}
   saveStateToStorage();
   closeModal();
   showNotification('Tarea eliminada correctamente');
@@ -3971,6 +4006,13 @@ async function deleteSession(id) {
   if (appState.sessions[team]) {
     appState.sessions[team] = appState.sessions[team].filter(s => String(s.id) !== String(id));
   }
+  try {
+    const deletedSessionIds = JSON.parse(localStorage.getItem('lanucia_deleted_sessions') || '["sess_1","sess_2"]');
+    if (!deletedSessionIds.includes(String(id))) {
+      deletedSessionIds.push(String(id));
+      localStorage.setItem('lanucia_deleted_sessions', JSON.stringify(deletedSessionIds));
+    }
+  } catch(e) {}
 
   saveStateToStorage();
   showNotification('Sesión eliminada');

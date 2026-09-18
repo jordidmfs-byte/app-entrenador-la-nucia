@@ -16,27 +16,6 @@
   ],
   "tasks": [
     {
-      "id": 51,
-      "nombre": "Rondo Táctico 4x1 de Posesión y Presión",
-      "descripcion": "Rondo continuo en espacio reducido 10x10. Cuatro atacantes por fuera a 1-2 toques buscan conservar la posesión ante un defensor. Tras pérdida, reacción e intensidad inmediata para recuperar antes de 3 segundos.",
-      "objetivo": "Mejorar la velocidad de circulación de balón, apoyos constantes, perfilación adecuada y presión tras pérdida.",
-      "fase_juego": "Transición",
-      "duracion": 15,
-      "dificultad": "Media",
-      "num_jugadores": "5 (4x1)",
-      "dimensiones": "10x10",
-      "material": [
-        "Balones",
-        "Petos",
-        "Conos"
-      ],
-      "etiquetas": [
-        "Posesión",
-        "Calentamiento",
-        "Presión"
-      ]
-    },
-    {
       "id": 1,
       "nombre": "ABP corners, BC",
       "descripcion": "realizaremos en 28 * 20 en analítico, movimientos de 4 jugadores realizando las distintas jugadas de córners y bandas cercanas y en finalizarlas se producirá una contra 3x1 hacia la otra portería, el jugador que defenderá la contra, será el que ha sacado el córner",
@@ -1474,87 +1453,8 @@
     ]
   },
   "sessions": {
-    "filial": [
-      {
-        "id": "sess_1",
-        "team": "filial",
-        "titulo": "Sesión 1: Rondo Táctico, Salida de Presión y ABP",
-        "fecha": "2026-09-07",
-        "duracion": 90,
-        "observaciones": "Excelente ritmo de entrenamiento. Buenas sensaciones en el rondo inicial y en la aplicación de conceptos tácticos.",
-        "calentamiento": [
-          {
-            "taskId": 51,
-            "duration": 15
-          }
-        ],
-        "parte_principal": [
-          {
-            "taskId": 1,
-            "duration": 25
-          },
-          {
-            "taskId": 2,
-            "duration": 25
-          },
-          {
-            "taskId": 3,
-            "duration": 15
-          }
-        ],
-        "vuelta_calma": [
-          {
-            "taskId": 34,
-            "duration": 10
-          }
-        ],
-        "tasks": [
-          51,
-          1,
-          2,
-          3,
-          34
-        ]
-      }
-    ],
-    "juvenil": [
-      {
-        "id": "sess_2",
-        "team": "juvenil",
-        "titulo": "Sesión 1: Automatismos ofensivos y Rondo",
-        "fecha": "2026-09-08",
-        "duracion": 90,
-        "observaciones": "Buena intensidad en juego asociativo y finalización.",
-        "calentamiento": [
-          {
-            "taskId": 51,
-            "duration": 15
-          }
-        ],
-        "parte_principal": [
-          {
-            "taskId": 4,
-            "duration": 30
-          },
-          {
-            "taskId": 5,
-            "duration": 30
-          }
-        ],
-        "vuelta_calma": [
-          {
-            "taskId": 34,
-            "duration": 15
-          }
-        ],
-        "tasks": [
-          51,
-          4,
-          5,
-          34
-        ]
-      }
-    ]
+    "filial": [],
+    "juvenil": []
   },
   "matches": {
     "filial": [],
@@ -1886,5 +1786,5 @@
     },
     "juvenil": {}
   },
-  "updated_at": 1789745615522
+  "updated_at": 1789748389122
 }
