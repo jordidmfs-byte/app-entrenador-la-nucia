@@ -176,13 +176,15 @@ async function init() {
     if (storedTeam === 'filial' || storedTeam === 'juvenil') {
       appState.activeTeam = storedTeam;
     }
-    const defaultDeleted = ["f_3","f_11","f_15","f_16","f_22"];
+    const defaultDeleted = ["f_3","f_11","f_15","f_16","f_22","j_5"];
     const deletedPlayerIds = JSON.parse(localStorage.getItem('lanucia_deleted_players') || JSON.stringify(defaultDeleted));
+    if (!deletedPlayerIds.includes('j_5')) deletedPlayerIds.push('j_5');
+    localStorage.setItem('lanucia_deleted_players', JSON.stringify(deletedPlayerIds));
     if (appState.players && appState.players.filial) {
-      appState.players.filial = appState.players.filial.filter(p => !deletedPlayerIds.includes(String(p.id)));
+      appState.players.filial = appState.players.filial.filter(p => !deletedPlayerIds.includes(String(p.id)) && !(p.nombre + ' ' + (p.apellidos||'')).toLowerCase().includes('nicolas'));
     }
     if (appState.players && appState.players.juvenil) {
-      appState.players.juvenil = appState.players.juvenil.filter(p => !deletedPlayerIds.includes(String(p.id)));
+      appState.players.juvenil = appState.players.juvenil.filter(p => !deletedPlayerIds.includes(String(p.id)) && !(p.nombre + ' ' + (p.apellidos||'')).toLowerCase().includes('nicolas'));
     }
   } catch (e) {}
 
@@ -284,10 +286,10 @@ async function fetchState(silent = false) {
       if (!newStore.players.juvenil) newStore.players.juvenil = [];
 
       try {
-        const deletedPlayerIds = JSON.parse(localStorage.getItem('lanucia_deleted_players') || '["f_3","f_11","f_15","f_16","f_22"]');
+        const deletedPlayerIds = JSON.parse(localStorage.getItem('lanucia_deleted_players') || '["f_3","f_11","f_15","f_16","f_22","j_5"]');
         if (Array.isArray(deletedPlayerIds) && deletedPlayerIds.length > 0) {
-          newStore.players.filial = (newStore.players.filial || []).filter(p => !deletedPlayerIds.includes(String(p.id)));
-          newStore.players.juvenil = (newStore.players.juvenil || []).filter(p => !deletedPlayerIds.includes(String(p.id)));
+          newStore.players.filial = (newStore.players.filial || []).filter(p => !deletedPlayerIds.includes(String(p.id)) && !(p.nombre + ' ' + (p.apellidos||'')).toLowerCase().includes('nicolas'));
+          newStore.players.juvenil = (newStore.players.juvenil || []).filter(p => !deletedPlayerIds.includes(String(p.id)) && !(p.nombre + ' ' + (p.apellidos||'')).toLowerCase().includes('nicolas'));
         }
       } catch(e) {}
 
