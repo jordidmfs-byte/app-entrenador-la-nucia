@@ -176,6 +176,14 @@ async function init() {
     if (storedTeam === 'filial' || storedTeam === 'juvenil') {
       appState.activeTeam = storedTeam;
     }
+    const defaultDeleted = ["f_3","f_11","f_15","f_16","f_22"];
+    const deletedPlayerIds = JSON.parse(localStorage.getItem('lanucia_deleted_players') || JSON.stringify(defaultDeleted));
+    if (appState.players && appState.players.filial) {
+      appState.players.filial = appState.players.filial.filter(p => !deletedPlayerIds.includes(String(p.id)));
+    }
+    if (appState.players && appState.players.juvenil) {
+      appState.players.juvenil = appState.players.juvenil.filter(p => !deletedPlayerIds.includes(String(p.id)));
+    }
   } catch (e) {}
 
   // 2. Render inicial inmediato desde cache local o defaults
@@ -274,6 +282,14 @@ async function fetchState(silent = false) {
       if (!newStore.players) newStore.players = { filial: [], juvenil: [] };
       if (!newStore.players.filial) newStore.players.filial = [];
       if (!newStore.players.juvenil) newStore.players.juvenil = [];
+
+      try {
+        const deletedPlayerIds = JSON.parse(localStorage.getItem('lanucia_deleted_players') || '["f_3","f_11","f_15","f_16","f_22"]');
+        if (Array.isArray(deletedPlayerIds) && deletedPlayerIds.length > 0) {
+          newStore.players.filial = (newStore.players.filial || []).filter(p => !deletedPlayerIds.includes(String(p.id)));
+          newStore.players.juvenil = (newStore.players.juvenil || []).filter(p => !deletedPlayerIds.includes(String(p.id)));
+        }
+      } catch(e) {}
 
       if (!newStore.sessions) newStore.sessions = { filial: [], juvenil: [] };
       if (!newStore.sessions.filial) newStore.sessions.filial = [];
@@ -2873,6 +2889,14 @@ async function deletePlayer(id) {
   if (appState.players[team]) {
     appState.players[team] = appState.players[team].filter(p => String(p.id) !== String(id));
   }
+
+  try {
+    const deletedPlayerIds = JSON.parse(localStorage.getItem('lanucia_deleted_players') || '["f_3","f_11","f_15","f_16","f_22"]');
+    if (!deletedPlayerIds.includes(String(id))) {
+      deletedPlayerIds.push(String(id));
+      localStorage.setItem('lanucia_deleted_players', JSON.stringify(deletedPlayerIds));
+    }
+  } catch(e) {}
 
   saveStateToStorage();
   showNotification('Jugador eliminado');
