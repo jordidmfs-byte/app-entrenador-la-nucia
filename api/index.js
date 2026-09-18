@@ -31,7 +31,7 @@ function loadLocalStore() {
     } catch (e) {}
   }
 
-  memoryStore = { activeTeam: 'filial', teams: [], tasks: [], players: { filial: [], juvenil: [] }, sessions: { filial: [], juvenil: [] }, matches: { filial: [], juvenil: [] }, videos: { filial: [], juvenil: [] }, attendances: { filial: {}, juvenil: {} }, ratings: { filial: {}, juvenil: {} } };
+  memoryStore = { activeTeam: 'juvenil', teams: [], tasks: [], players: { filial: [], juvenil: [] }, sessions: { filial: [], juvenil: [] }, matches: { filial: [], juvenil: [] }, videos: { filial: [], juvenil: [] }, attendances: { filial: {}, juvenil: {} }, ratings: { filial: {}, juvenil: {} } };
   return memoryStore;
 }
 

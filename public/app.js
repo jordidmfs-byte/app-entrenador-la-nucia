@@ -4,7 +4,7 @@
 // ==========================================
 
 let appState = {
-  activeTeam: 'filial',
+  activeTeam: 'juvenil',
   teams: [],
   tasks: [],
   players: { filial: [], juvenil: [] },
@@ -172,10 +172,8 @@ async function init() {
         appState = { ...appState, ...parsedCached };
       }
     }
-    const storedTeam = localStorage.getItem('lanucia_active_team');
-    if (storedTeam === 'filial' || storedTeam === 'juvenil') {
-      appState.activeTeam = storedTeam;
-    }
+    const storedTeam = localStorage.getItem('lanucia_active_team') || 'juvenil';
+    appState.activeTeam = storedTeam;
     const defaultDeleted = ["f_3","f_11","f_15","f_16","f_22","j_5"];
     const deletedPlayerIds = JSON.parse(localStorage.getItem('lanucia_deleted_players') || JSON.stringify(defaultDeleted));
     if (!deletedPlayerIds.includes('j_5')) deletedPlayerIds.push('j_5');

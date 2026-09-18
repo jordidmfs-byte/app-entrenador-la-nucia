@@ -11,7 +11,7 @@ function loadStore() {
     return JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
   } catch (e) {
     console.error('Error loading store:', e);
-    return { activeTeam: 'filial', teams: [], tasks: [], players: { filial: [], juvenil: [] }, sessions: { filial: [], juvenil: [] }, matches: { filial: [], juvenil: [] }, videos: { filial: [], juvenil: [] }, attendances: { filial: {}, juvenil: {} } };
+    return { activeTeam: 'juvenil', teams: [], tasks: [], players: { filial: [], juvenil: [] }, sessions: { filial: [], juvenil: [] }, matches: { filial: [], juvenil: [] }, videos: { filial: [], juvenil: [] }, attendances: { filial: {}, juvenil: {} } };
   }
 }
 
