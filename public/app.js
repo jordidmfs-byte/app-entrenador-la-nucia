@@ -151,6 +151,16 @@ function saveStateToStorage() {
     };
 
     localStorage.setItem('lanucia_app_state', JSON.stringify(lightState));
+
+    // Despachar sincronización inmediata y fiable a la nube
+    if (window._syncTimeout) clearTimeout(window._syncTimeout);
+    window._syncTimeout = setTimeout(() => {
+      fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lightState)
+      }).catch(err => console.warn('Cloud sync background error:', err));
+    }, 400);
   } catch (e) {
     console.warn('LocalStorage save warning:', e);
   }

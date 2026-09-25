@@ -140,7 +140,11 @@ async function saveStore(data) {
   memoryStore = data;
 
   // 1. Save to Cloud Gist for 100% reliable cross-device persistence
-  saveToCloudGist(data).catch(() => {});
+  try {
+    await saveToCloudGist(data);
+  } catch (e) {
+    console.error("Cloud Gist save failed:", e.message);
+  }
 
   // 2. Try Neon Cloud DB as secondary storage
   const dbUrl = getDbUrl();
