@@ -133,6 +133,59 @@ let boardCanvas = null;
 let boardCtx = null;
 let boardBackgroundImg = null;
 
+function updateSyncStatus(status) {
+  const pill = document.getElementById('cloud-sync-status');
+  const dot = document.getElementById('cloud-sync-dot');
+  const txt = document.getElementById('cloud-sync-text');
+  if (!pill || !dot || !txt) return;
+
+  pill.classList.remove('hidden');
+  if (status === 'syncing') {
+    pill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-500/30 bg-amber-500/10 text-amber-400 transition-all duration-300";
+    dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-ping";
+    txt.textContent = "Sincronizando...";
+  } else if (status === 'saved') {
+    pill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition-all duration-300";
+    dot.className = "w-2 h-2 rounded-full bg-emerald-400";
+    txt.textContent = "Nube sincronizada";
+  } else if (status === 'error' || status === 'offline') {
+    pill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-500/50 bg-red-500/20 text-red-300 animate-pulse transition-all duration-300 cursor-pointer";
+    dot.className = "w-2 h-2 rounded-full bg-red-500";
+    txt.textContent = "Fallo de conexión";
+  }
+}
+
+let lastNotificationTime = 0;
+function notifySyncFailure(message) {
+  const now = Date.now();
+  // Evitar saturar al usuario con avisos seguidos (máximo 1 cada 30 segundos)
+  if (now - lastNotificationTime < 30000) return;
+  lastNotificationTime = now;
+
+  let alertContainer = document.getElementById('global-sync-alert');
+  if (!alertContainer) {
+    alertContainer = document.createElement('div');
+    alertContainer.id = 'global-sync-alert';
+    alertContainer.className = 'fixed top-20 right-4 z-50 max-w-sm p-4 rounded-xl border border-red-500/50 bg-[#1e1112] text-white shadow-2xl transition-all duration-300 transform translate-y-0 flex items-start gap-3';
+    document.body.appendChild(alertContainer);
+  }
+
+  alertContainer.innerHTML = `
+    <div class="text-xl">⚠️</div>
+    <div class="flex-1 text-xs">
+      <div class="font-bold text-red-400 mb-0.5">AVISO DE GUARDADO EN NUBE</div>
+      <div class="text-slate-200 leading-relaxed">${message}</div>
+    </div>
+    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white text-sm font-bold ml-1">✕</button>
+  `;
+
+  setTimeout(() => {
+    if (alertContainer && alertContainer.parentElement) {
+      alertContainer.remove();
+    }
+  }, 10000);
+}
+
 function saveStateToStorage() {
   try {
     if (!appState) return;
@@ -152,14 +205,26 @@ function saveStateToStorage() {
 
     localStorage.setItem('lanucia_app_state', JSON.stringify(lightState));
 
-    // Despachar sincronización inmediata y fiable a la nube
+    // Indicador visual de estado y sincronización inmediata a la nube
+    updateSyncStatus('syncing');
     if (window._syncTimeout) clearTimeout(window._syncTimeout);
-    window._syncTimeout = setTimeout(() => {
-      fetch('/api/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(lightState)
-      }).catch(err => console.warn('Cloud sync background error:', err));
+    window._syncTimeout = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(lightState)
+        });
+        if (res.ok) {
+          updateSyncStatus('saved');
+        } else {
+          updateSyncStatus('error');
+          notifySyncFailure("No se pudo guardar en la nube (error en servidor). Tus cambios siguen a salvo en este dispositivo, pero reintentaremos conectarnos.");
+        }
+      } catch (err) {
+        updateSyncStatus('offline');
+        notifySyncFailure("Sin conexión con el servidor. Tus cambios están protegidos localmente y se subirán en cuanto recuperes cobertura.");
+      }
     }, 400);
   } catch (e) {
     console.warn('LocalStorage save warning:', e);
@@ -271,17 +336,25 @@ async function fetchState(silent = false) {
     const localUpdatedAt = (localCache && localCache.updated_at) ? Number(localCache.updated_at) : 0;
     const serverUpdatedAt = (serverData && serverData.updated_at) ? Number(serverData.updated_at) : 0;
 
+    if (serverData) {
+      updateSyncStatus('saved');
+    }
+
     if (localCache && localUpdatedAt > serverUpdatedAt) {
       newStore = localCache;
-      // Enviar de forma asíncrona la versión más reciente al servidor para mantenerlo al día si es posible
+      // Enviar de forma asíncrona la versión más reciente al servidor para mantenerlo al día
       if (serverData !== null) {
-        try {
-          fetch('/api/state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(localCache)
-          }).catch(() => {});
-        } catch(e) {}
+        updateSyncStatus('syncing');
+        fetch('/api/state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(localCache)
+        }).then(r => {
+          if (r.ok) updateSyncStatus('saved');
+          else updateSyncStatus('error');
+        }).catch(() => {
+          updateSyncStatus('offline');
+        });
       }
     } else if (serverData) {
       newStore = serverData;
