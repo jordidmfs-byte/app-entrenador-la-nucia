@@ -166,7 +166,7 @@ function notifySyncFailure(message) {
   if (!alertContainer) {
     alertContainer = document.createElement('div');
     alertContainer.id = 'global-sync-alert';
-    alertContainer.className = 'fixed top-20 right-4 z-50 max-w-sm p-4 rounded-xl border border-red-500/50 bg-[#1e1112] text-white shadow-2xl transition-all duration-300 transform translate-y-0 flex items-start gap-3';
+    alertContainer.className = 'fixed bottom-20 md:bottom-6 right-4 z-50 max-w-sm p-4 rounded-xl border border-red-500/50 bg-[#1e1112] text-white shadow-2xl transition-all duration-300 transform translate-y-0 flex items-start gap-3';
     document.body.appendChild(alertContainer);
   }
 

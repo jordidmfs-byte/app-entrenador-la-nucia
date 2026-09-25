@@ -120,11 +120,6 @@
             <span>Filial</span>
           </button>
         </div>
-        <!-- Cloud Sync Status Pill -->
-        <div id="cloud-sync-status" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition-all duration-300" title="Sincronización en la nube">
-          <span id="cloud-sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span id="cloud-sync-text">Nube OK</span>
-        </div>
       </div>
 
       <!-- Navigation Bar (Visible en móvil, tablet y escritorio con scroll horizontal suave) -->
@@ -240,7 +235,11 @@
     <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
       <p>&copy; 2026 La Nucía Fútbol Sala. Panel del Entrenador (Filial & Juvenil) - Todos los derechos reservados.</p>
       <div class="flex items-center justify-center gap-3 text-xs flex-wrap">
-        <span class="text-emerald-400 font-semibold">● Sistema en línea</span>
+        <!-- Cloud Sync Status Pill (Parte inferior) -->
+        <div id="cloud-sync-status" class="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition-all duration-300" title="Sincronización en la nube">
+          <span id="cloud-sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span id="cloud-sync-text">Nube sincronizada</span>
+        </div>
         <span>·</span>
         <button onclick="exportData()" class="hover:text-white transition-colors">💾 Exportar Datos</button>
       </div>
