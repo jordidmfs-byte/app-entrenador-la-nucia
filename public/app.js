@@ -186,7 +186,7 @@ function notifySyncFailure(message) {
   }, 10000);
 }
 
-function saveStateToStorage(skipCloudSync = false, immediate = false) {
+async function saveStateToStorage(skipCloudSync = false, immediate = false) {
   try {
     if (!appState) return;
     if (!skipCloudSync) {
