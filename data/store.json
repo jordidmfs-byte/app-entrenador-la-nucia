@@ -1457,6 +1457,16 @@
         "competicion": "Liga Juvenil Autonómica",
         "localizacion": "Pabellón Rival",
         "resultado": "2-1"
+      },
+      {
+        "id": 1790601570001,
+        "team": "juvenil",
+        "rival": "C.D. Paidos Dénia A",
+        "fecha": "2026-09-27",
+        "hora": "12:00",
+        "competicion": "Liga Juvenil Autonómica",
+        "localizacion": "Pabellón Camilo Cano",
+        "resultado": ""
       }
     ]
   },
@@ -1472,7 +1482,17 @@
         "descripcion": "Vídeo de análisis y scouting del partido frente a Serelles Alcoy C.F.S. B"
       }
     ],
-    "juvenil": []
+    "juvenil": [
+      {
+        "id": 1790601570002,
+        "team": "juvenil",
+        "titulo": "Partido Juvenil vs C.D. Paidos Dénia A",
+        "categoria": "Partido Completo",
+        "rival": "C.D. Paidos Dénia A",
+        "url": "https://www.youtube.com",
+        "descripcion": "Vídeo completo y análisis del partido contra C.D. Paidos Dénia A"
+      }
+    ]
   },
   "attendances": {
     "filial": {
