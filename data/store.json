@@ -1435,7 +1435,18 @@
     "juvenil": []
   },
   "matches": {
-    "filial": [],
+    "filial": [
+      {
+        "id": 1790601378012,
+        "team": "filial",
+        "rival": "Serelles Alcoy C.F.S. B",
+        "fecha": "2026-09-27",
+        "hora": "12:00",
+        "competicion": "Lliga Preferent Futsal - Grup 3",
+        "localizacion": "Pabellón Rival",
+        "resultado": ""
+      }
+    ],
     "juvenil": [
       {
         "id": 1790597204272,
@@ -1450,7 +1461,17 @@
     ]
   },
   "videos": {
-    "filial": [],
+    "filial": [
+      {
+        "id": 1790601378013,
+        "team": "filial",
+        "titulo": "Análisis y Scouting Rival - Serelles Alcoy C.F.S. B",
+        "categoria": "Scouting Rival",
+        "rival": "Serelles Alcoy C.F.S. B",
+        "url": "https://www.youtube.com",
+        "descripcion": "Vídeo de análisis y scouting del partido frente a Serelles Alcoy C.F.S. B"
+      }
+    ],
     "juvenil": []
   },
   "attendances": {
