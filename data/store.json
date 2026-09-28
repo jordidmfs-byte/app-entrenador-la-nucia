@@ -1445,6 +1445,16 @@
         "competicion": "Lliga Preferent Futsal - Grup 3",
         "localizacion": "Pabellón Rival",
         "resultado": ""
+      },
+      {
+        "id": 1790601800001,
+        "team": "filial",
+        "rival": "C.F.S. Dianense A",
+        "fecha": "2026-09-20",
+        "hora": "12:00",
+        "competicion": "Lliga Preferent Futsal - Grup 3",
+        "localizacion": "Pabellón Camilo Cano",
+        "resultado": ""
       }
     ],
     "juvenil": [
@@ -1480,6 +1490,15 @@
         "rival": "Serelles Alcoy C.F.S. B",
         "url": "https://www.youtube.com",
         "descripcion": "Vídeo de análisis y scouting del partido frente a Serelles Alcoy C.F.S. B"
+      },
+      {
+        "id": 1790601800002,
+        "team": "filial",
+        "titulo": "Partido Filial vs C.F.S. Dianense A",
+        "categoria": "Partido Completo",
+        "rival": "C.F.S. Dianense A",
+        "url": "https://www.youtube.com",
+        "descripcion": "Vídeo del partido Filial vs C.F.S. Dianense A"
       }
     ],
     "juvenil": [

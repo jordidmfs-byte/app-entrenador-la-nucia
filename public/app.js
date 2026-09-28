@@ -4391,8 +4391,9 @@ function renderVideos() {
                   </a>
                 ` : ''}
               </div>
-              <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-end">
-                <button onclick="deleteVideo('${v.id}')" class="text-xs text-rose-400 hover:text-rose-300">Eliminar</button>
+              <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
+                <button onclick="editVideo('${v.id}')" class="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1">✏️ Editar</button>
+                <button onclick="deleteVideo('${v.id}')" class="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1">🗑️ Eliminar</button>
               </div>
             </div>
           `).join('')}
@@ -4402,26 +4403,36 @@ function renderVideos() {
   `;
 }
 
-function openNewVideoModal() {
+function editVideo(id) {
+  const team = appState.activeTeam || 'filial';
+  const video = (appState.videos && appState.videos[team]) ? appState.videos[team].find(v => String(v.id) === String(id)) : null;
+  if (!video) return;
+  openNewVideoModal(video);
+}
+
+function openNewVideoModal(videoToEdit = null) {
+  const isEdit = !!videoToEdit;
   const team = appState.activeTeam || 'filial';
   openModal(`
     <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-      <h3 class="font-outfit font-extrabold text-lg text-white uppercase">Añadir Vídeo (${team.toUpperCase()})</h3>
+      <h3 class="font-outfit font-extrabold text-lg text-white uppercase">${isEdit ? 'Editar Vídeo' : 'Añadir Vídeo'} (${team.toUpperCase()})</h3>
       <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
     </div>
     <form onsubmit="handleSaveVideo(event)" class="flex flex-col gap-3 text-xs">
+      <input type="hidden" id="v-id" value="${isEdit ? videoToEdit.id : ''}">
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Título del vídeo</label>
-        <input type="text" id="v-titulo" required placeholder="Ej: Salida de presión vs rival" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+        <input type="text" id="v-titulo" required value="${isEdit ? (videoToEdit.titulo || '') : ''}" placeholder="Ej: Salida de presión vs rival" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Categoría</label>
           <select id="v-categoria" class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
-            <option value="Scouting Rival">Scouting Rival</option>
-            <option value="Análisis Propio">Análisis Propio</option>
-            <option value="ABP Rival">ABP Rival</option>
-            <option value="Vídeo Sesión">Vídeo Sesión</option>
+            <option value="Scouting Rival" ${isEdit && videoToEdit.categoria === 'Scouting Rival' ? 'selected' : ''}>Scouting Rival</option>
+            <option value="Partido Completo" ${isEdit && videoToEdit.categoria === 'Partido Completo' ? 'selected' : ''}>Partido Completo</option>
+            <option value="Análisis Propio" ${isEdit && videoToEdit.categoria === 'Análisis Propio' ? 'selected' : ''}>Análisis Propio</option>
+            <option value="ABP Rival" ${isEdit && videoToEdit.categoria === 'ABP Rival' ? 'selected' : ''}>ABP Rival</option>
+            <option value="Vídeo Sesión" ${isEdit && videoToEdit.categoria === 'Vídeo Sesión' ? 'selected' : ''}>Vídeo Sesión</option>
           </select>
         </div>
         <div class="flex flex-col gap-1">
@@ -4430,13 +4441,14 @@ function openNewVideoModal() {
                   class="w-full bg-[#1e1e1e] border border-white/15 rounded-xl px-3 py-2 text-white text-xs font-semibold focus:border-club-red focus:outline-none mb-1 cursor-pointer">
             <option value="" class="bg-[#1a1a1a] text-slate-400">-- Seleccionar rival oficial (${team.toUpperCase()}) --</option>
             ${getRivalsForTeam(team).map(r => `
-              <option value="${r}" class="bg-[#1a1a1a] text-white">
+              <option value="${r}" ${isEdit && videoToEdit.rival === r ? 'selected' : ''} class="bg-[#1a1a1a] text-white">
                 ⚽ ${r}
               </option>
             `).join('')}
           </select>
           <div class="relative flex items-center">
             <input type="text" id="v-rival" placeholder="O escribe para filtrar..."
+                   value="${isEdit ? (videoToEdit.rival || '') : ''}"
                    autocomplete="off" list="v-rival-datalist"
                    onfocus="showAllRivalsDropdown('${team}', 'v-rival-dropdown', 'v-rival')"
                    oninput="handleRivalSearchInput(this.value, '${team}', 'v-rival-dropdown', 'v-rival')"
@@ -4456,15 +4468,15 @@ function openNewVideoModal() {
       </div>
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Enlace / URL</label>
-        <input type="url" id="v-url" placeholder="https://..." class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
+        <input type="url" id="v-url" value="${isEdit ? (videoToEdit.url || '') : ''}" placeholder="https://..." class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">
       </div>
       <div>
         <label class="block text-slate-300 mb-1 font-bold uppercase text-[10px]">Descripción</label>
-        <textarea id="v-descripcion" rows="2" placeholder="Observaciones tácticas clave..." class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs"></textarea>
+        <textarea id="v-descripcion" rows="2" placeholder="Observaciones tácticas clave..." class="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs">${isEdit ? (videoToEdit.descripcion || '') : ''}</textarea>
       </div>
       <div class="flex justify-end gap-2 mt-2">
         <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-white/5 text-slate-400 hover:text-white">Cancelar</button>
-        <button type="submit" class="px-5 py-2 rounded-xl bg-club-red text-white font-bold uppercase text-xs">Guardar Vídeo</button>
+        <button type="submit" class="px-5 py-2 rounded-xl bg-club-red text-white font-bold uppercase text-xs">${isEdit ? 'Actualizar Vídeo' : 'Guardar Vídeo'}</button>
       </div>
     </form>
   `);
@@ -4473,8 +4485,9 @@ function openNewVideoModal() {
 async function handleSaveVideo(e) {
   e.preventDefault();
   const team = appState.activeTeam || 'filial';
-  const newVideo = {
-    id: Date.now(),
+  const editId = document.getElementById('v-id') ? document.getElementById('v-id').value : '';
+  const videoData = {
+    id: editId || Date.now(),
     team,
     titulo: document.getElementById('v-titulo').value,
     categoria: document.getElementById('v-categoria').value,
@@ -4485,10 +4498,20 @@ async function handleSaveVideo(e) {
 
   if (!appState.videos) appState.videos = { filial: [], juvenil: [] };
   if (!appState.videos[team]) appState.videos[team] = [];
-  appState.videos[team].push(newVideo);
+
+  if (editId) {
+    const idx = appState.videos[team].findIndex(v => String(v.id) === String(editId));
+    if (idx !== -1) {
+      appState.videos[team][idx] = { ...appState.videos[team][idx], ...videoData };
+    } else {
+      appState.videos[team].push(videoData);
+    }
+  } else {
+    appState.videos[team].push(videoData);
+  }
 
   closeModal();
-  showNotification('Vídeo guardado con éxito');
+  showNotification(editId ? 'Vídeo actualizado con éxito' : 'Vídeo guardado con éxito');
   renderView();
   await saveStateToStorage(false, true);
 }
