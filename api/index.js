@@ -46,6 +46,116 @@ async function ensureTable(sql) {
 
 const GIST_TOKEN = process.env.GITHUB_TOKEN || (['gho', '_', 'DuZHroMsJdgfTWn', 'DeiMUyAx1viJWNO48jvUR'].join(''));
 const GIST_ID = process.env.GITHUB_GIST_ID || '1d2f3214066301db71a876628c1dd334';
+const GITHUB_REPO_OWNER = 'jordidmfs-byte';
+const GITHUB_REPO_NAME = 'entrenos';
+const GITHUB_FILE_PATH = 'data/app_store.json';
+let cachedSha = null;
+
+async function fetchFromRepo() {
+  if (!GIST_TOKEN) return null;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`, {
+      headers: {
+        'Authorization': `token ${GIST_TOKEN}`,
+        'User-Agent': 'LaNuciaApp',
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.sha) cachedSha = data.sha;
+    if (data.content) {
+      const jsonStr = Buffer.from(data.content, 'base64').toString('utf8');
+      return JSON.parse(jsonStr);
+    } else if (data.download_url) {
+      const rawRes = await fetch(data.download_url, {
+        headers: { 'Authorization': `token ${GIST_TOKEN}` }
+      });
+      if (rawRes.ok) return await rawRes.json();
+    }
+  } catch (e) {
+    console.error("Cloud Repo load error:", e.message);
+  }
+  return null;
+}
+
+async function saveToRepo(data) {
+  if (!GIST_TOKEN) return false;
+  try {
+    const cleanData = JSON.parse(JSON.stringify(data));
+    if (cleanData.tasks) {
+      cleanData.tasks.forEach(t => {
+        if (Number(t.id) <= 50 && t.grafico && t.grafico.length > 500) delete t.grafico;
+      });
+    }
+
+    if (!cachedSha) {
+      const checkRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`, {
+        headers: {
+          'Authorization': `token ${GIST_TOKEN}`,
+          'User-Agent': 'LaNuciaApp'
+        }
+      });
+      if (checkRes.ok) {
+        const fileInfo = await checkRes.json();
+        cachedSha = fileInfo.sha;
+      }
+    }
+
+    const base64Content = Buffer.from(JSON.stringify(cleanData)).toString('base64');
+    const putRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${GIST_TOKEN}`,
+        'User-Agent': 'LaNuciaApp',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: 'Persist state',
+        content: base64Content,
+        sha: cachedSha || undefined
+      })
+    });
+
+    if (putRes.ok) {
+      const resJson = await putRes.json();
+      if (resJson.content && resJson.content.sha) cachedSha = resJson.content.sha;
+      return true;
+    } else {
+      const checkRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`, {
+        headers: {
+          'Authorization': `token ${GIST_TOKEN}`,
+          'User-Agent': 'LaNuciaApp'
+        }
+      });
+      if (checkRes.ok) {
+        const fileInfo = await checkRes.json();
+        cachedSha = fileInfo.sha;
+        const retryRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${GIST_TOKEN}`,
+            'User-Agent': 'LaNuciaApp',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: 'Persist state retry',
+            content: base64Content,
+            sha: cachedSha
+          })
+        });
+        if (retryRes.ok) {
+          const retryJson = await retryRes.json();
+          if (retryJson.content && retryJson.content.sha) cachedSha = retryJson.content.sha;
+          return true;
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Cloud Repo save error:", e.message);
+  }
+  return false;
+}
 
 async function fetchFromCloudGist() {
   if (!GIST_TOKEN || !GIST_ID) return null;
@@ -102,29 +212,18 @@ async function saveToCloudGist(data) {
         }
       })
     });
-  } catch (e) {
-    console.error("Cloud Gist save error:", e.message);
-  }
+  } catch (e) {}
 }
 
 async function loadStore() {
-  // 1. Try Neon Cloud DB if available and healthy
-  const dbUrl = getDbUrl();
-  if (dbUrl && neon) {
-    try {
-      const sql = neon(dbUrl);
-      await ensureTable(sql);
-      const rows = await sql`SELECT data FROM app_store WHERE id = 'state'`;
-      if (rows && rows.length > 0 && rows[0].data) {
-        memoryStore = rows[0].data;
-        return memoryStore;
-      }
-    } catch(e) {
-      // Neon may be blocked or over quota, proceed to cloud gist
-    }
+  // 1. Primary: Load from High-Availability Cloud Repo (5,000 req/hr, persistent git storage)
+  const repoStore = await fetchFromRepo();
+  if (repoStore && typeof repoStore === 'object') {
+    memoryStore = repoStore;
+    return memoryStore;
   }
 
-  // 2. Try High-Availability Cloud Gist (guaranteed cross-device sync)
+  // 2. Secondary fallback: High-Availability Cloud Gist
   const gistStore = await fetchFromCloudGist();
   if (gistStore && typeof gistStore === 'object') {
     memoryStore = gistStore;
@@ -136,27 +235,16 @@ async function loadStore() {
 }
 
 async function saveStore(data) {
-  if (!data.updated_at) data.updated_at = Date.now();
+  data.updated_at = Date.now();
   memoryStore = data;
 
-  // 1. Save to Cloud Gist for 100% reliable cross-device persistence
-  try {
-    await saveToCloudGist(data);
-  } catch (e) {
-    console.error("Cloud Gist save failed:", e.message);
-  }
+  // 1. Primary: Save to High-Availability Cloud Repo (5,000 req/hr limit, permanent git storage)
+  const repoOk = await saveToRepo(data);
 
-  // 2. Try Neon Cloud DB as secondary storage
-  const dbUrl = getDbUrl();
-  if (dbUrl && neon) {
-    try {
-      const sql = neon(dbUrl);
-      await ensureTable(sql);
-      await sql`INSERT INTO app_store (id, data, updated_at) VALUES ('state', ${JSON.stringify(data)}::jsonb, NOW()) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`;
-    } catch(e) {
-      // Handled silently
-    }
-  }
+  // 2. Secondary fallback: Attempt Gist backup
+  try {
+    saveToCloudGist(data).catch(() => {});
+  } catch (e) {}
 
   // 3. Save local file when running locally
   try {
@@ -165,6 +253,8 @@ async function saveStore(data) {
       fs.writeFileSync(localPath, JSON.stringify(data, null, 2), 'utf8');
     }
   } catch(e) {}
+
+  return repoOk;
 }
 
 module.exports = async (req, res) => {
@@ -210,9 +300,15 @@ module.exports = async (req, res) => {
       const store = await loadStore();
 
       if (route === 'state' && req.method === 'POST') {
-        await saveStore(parsed);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true }));
+        parsed.updated_at = Date.now();
+        const ok = await saveStore(parsed);
+        if (ok) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, updated_at: parsed.updated_at }));
+        } else {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Failed to persist to cloud repository' }));
+        }
         return;
       }
 

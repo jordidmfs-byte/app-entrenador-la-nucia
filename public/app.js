@@ -186,10 +186,12 @@ function notifySyncFailure(message) {
   }, 10000);
 }
 
-function saveStateToStorage() {
+function saveStateToStorage(skipCloudSync = false, immediate = false) {
   try {
     if (!appState) return;
-    appState.updated_at = Date.now();
+    if (!skipCloudSync) {
+      appState.updated_at = Date.now();
+    }
     const lightTasks = (appState.tasks || []).map(t => {
       const copy = { ...t };
       if (Number(copy.id) <= 50 && copy.grafico && copy.grafico.length > 500) {
@@ -205,10 +207,13 @@ function saveStateToStorage() {
 
     localStorage.setItem('lanucia_app_state', JSON.stringify(lightState));
 
+    if (skipCloudSync) return;
+
     // Indicador visual de estado y sincronización inmediata a la nube
     updateSyncStatus('syncing');
     if (window._syncTimeout) clearTimeout(window._syncTimeout);
-    window._syncTimeout = setTimeout(async () => {
+
+    const doSync = async () => {
       try {
         const res = await fetch('/api/state', {
           method: 'POST',
@@ -216,16 +221,36 @@ function saveStateToStorage() {
           body: JSON.stringify(lightState)
         });
         if (res.ok) {
+          const resData = await res.json().catch(() => ({}));
+          if (resData.updated_at) {
+            appState.updated_at = resData.updated_at;
+            localStorage.setItem('lanucia_app_state', JSON.stringify({ ...lightState, updated_at: resData.updated_at }));
+          }
+          window._hasPendingSync = false;
+          localStorage.removeItem('lanucia_pending_sync');
           updateSyncStatus('saved');
+          return true;
         } else {
+          window._hasPendingSync = true;
+          localStorage.setItem('lanucia_pending_sync', 'true');
           updateSyncStatus('error');
-          notifySyncFailure("No se pudo guardar en la nube (error en servidor). Tus cambios siguen a salvo en este dispositivo, pero reintentaremos conectarnos.");
+          notifySyncFailure("No se pudo guardar en la nube (error en servidor). Tus cambios siguen a salvo en este dispositivo.");
+          return false;
         }
       } catch (err) {
+        window._hasPendingSync = true;
+        localStorage.setItem('lanucia_pending_sync', 'true');
         updateSyncStatus('offline');
-        notifySyncFailure("Sin conexión con el servidor. Tus cambios están protegidos localmente y se subirán en cuanto recuperes cobertura.");
+        notifySyncFailure("Sin conexión con el servidor. Tus cambios están protegidos localmente y se subirán al reconectar.");
+        return false;
       }
-    }, 400);
+    };
+
+    if (immediate) {
+      return await doSync();
+    } else {
+      window._syncTimeout = setTimeout(doSync, 300);
+    }
   } catch (e) {
     console.warn('LocalStorage save warning:', e);
   }
@@ -279,7 +304,7 @@ async function init() {
   updateHeaderUI();
   renderView();
 
-  // 3. Cargar datos del servidor Cloud DB (Neon) y sincronizar respetando cambios locales
+  // 3. Cargar datos del servidor Cloud DB y sincronizar
   await fetchState(false);
   initWeekSelector();
   updateHeaderUI();
@@ -320,7 +345,7 @@ async function fetchState(silent = false) {
       }
     } catch (e) {}
 
-    // Leer cache local para proteger cambios confirmados por el usuario
+    // Leer cache local para proteger cambios no sincronizados
     let localCache = null;
     try {
       const cached = localStorage.getItem('lanucia_app_state');
@@ -331,18 +356,17 @@ async function fetchState(silent = false) {
 
     let newStore = null;
 
-    // Si el cache local tiene cambios más recientes que los del servidor (o el servidor no responde o está en blanco),
-    // el cache local tiene autoridad absoluta para que NINGÚN cambio confirmado se pierda.
     const localUpdatedAt = (localCache && localCache.updated_at) ? Number(localCache.updated_at) : 0;
     const serverUpdatedAt = (serverData && serverData.updated_at) ? Number(serverData.updated_at) : 0;
+    const hasPendingSync = (localStorage.getItem('lanucia_pending_sync') === 'true') || window._hasPendingSync;
 
     if (serverData) {
       updateSyncStatus('saved');
     }
 
-    if (localCache && localUpdatedAt > serverUpdatedAt) {
+    if (hasPendingSync && localCache && localUpdatedAt > serverUpdatedAt) {
+      // SOLO si este dispositivo tiene cambios pendientes que no se pudieron subir antes
       newStore = localCache;
-      // Enviar de forma asíncrona la versión más reciente al servidor para mantenerlo al día
       if (serverData !== null) {
         updateSyncStatus('syncing');
         fetch('/api/state', {
@@ -350,8 +374,13 @@ async function fetchState(silent = false) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(localCache)
         }).then(r => {
-          if (r.ok) updateSyncStatus('saved');
-          else updateSyncStatus('error');
+          if (r.ok) {
+            window._hasPendingSync = false;
+            localStorage.removeItem('lanucia_pending_sync');
+            updateSyncStatus('saved');
+          } else {
+            updateSyncStatus('error');
+          }
         }).catch(() => {
           updateSyncStatus('offline');
         });
@@ -440,7 +469,7 @@ async function fetchState(silent = false) {
       const nextJson = JSON.stringify(newStore);
 
       appState = newStore;
-      saveStateToStorage();
+      saveStateToStorage(true);
 
       if (silent && prevJson !== nextJson) {
         const isEditing = document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
@@ -1360,26 +1389,9 @@ async function handleSaveAttendance(e) {
     Object.assign(appState.ratings[team][pid], ratingPayload[pid]);
   }
 
-  saveStateToStorage();
-
   showNotification('Asistencias y valoraciones guardadas correctamente para la semana seleccionada.');
   renderView();
-
-  // 2. Sincronizar con el servidor en segundo plano si está disponible
-  try {
-    await fetch('/api/attendance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        team,
-        semana: selectedWeekStart,
-        attendance: attendancePayload,
-        rating: ratingPayload
-      })
-    });
-  } catch(err) {
-    console.warn('Sync notice:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 // ====================================================
@@ -1713,20 +1725,10 @@ async function confirmDeleteTask(taskId, taskName) {
       localStorage.setItem('lanucia_deleted_tasks', JSON.stringify(deletedTaskIds));
     }
   } catch(e) {}
-  saveStateToStorage();
   closeModal();
   showNotification('Tarea eliminada correctamente');
   renderView();
-
-  try {
-    await fetch('/api/tasks', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: taskId })
-    });
-  } catch (err) {
-    console.error('Server sync error deleting task:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 function openNewTaskModalWithBoard(taskToEdit = null) {
@@ -2653,20 +2655,10 @@ async function handleSaveTaskWithBoard(e) {
     appState.tasks.push(payload);
   }
 
-  saveStateToStorage();
   closeModal();
   showNotification(editId ? 'Tarea y pizarra actualizadas correctamente' : 'Tarea guardada con gráfico táctico interactivo');
   renderView();
-
-  try {
-    await fetch('/api/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-  } catch(err) {
-    console.error('Server sync error for task save:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 // ====================================================
@@ -2942,20 +2934,10 @@ async function handleSavePlayer(e) {
   if (!appState.players[team]) appState.players[team] = [];
   appState.players[team].push(newPlayer);
 
-  saveStateToStorage();
   closeModal();
   showNotification('Jugador añadido con éxito');
   renderView();
-
-  try {
-    await fetch('/api/players', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ team, ...newPlayer })
-    });
-  } catch(err) {
-    console.error('Server sync error for add player:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 async function handleUpdatePlayer(e, id) {
@@ -2983,20 +2965,10 @@ async function handleUpdatePlayer(e, id) {
     appState.players[team].push(updatedPlayer);
   }
 
-  saveStateToStorage();
   closeModal();
   showNotification('Jugador y foto actualizados');
   renderView();
-
-  try {
-    await fetch('/api/players', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ team, ...updatedPlayer })
-    });
-  } catch(err) {
-    console.error('Server sync error for update player:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 async function deletePlayer(id) {
@@ -3016,19 +2988,9 @@ async function deletePlayer(id) {
     }
   } catch(e) {}
 
-  saveStateToStorage();
   showNotification('Jugador eliminado');
   renderView();
-
-  try {
-    await fetch('/api/players', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, team })
-    });
-  } catch(err) {
-    console.error('Server sync error for delete player:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 // ====================================================
@@ -3654,19 +3616,9 @@ async function handleSaveSessionForm(e, editId = null) {
     appState.sessions[team].push(payload);
   }
 
-  saveStateToStorage();
   showNotification(editId ? 'Sesión de entrenamiento actualizada con éxito' : 'Sesión de entrenamiento creada con éxito');
   goToSessionSubView('index');
-
-  try {
-    await fetch('/api/sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-  } catch(err) {
-    console.error('Server sync error for session save:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 // ----------------------------------------------------
@@ -4097,23 +4049,13 @@ async function deleteSession(id) {
     }
   } catch(e) {}
 
-  saveStateToStorage();
   showNotification('Sesión eliminada');
   if (sessionSubView === 'show' || sessionSubView === 'edit') {
     goToSessionSubView('index');
   } else {
     renderView();
   }
-
-  try {
-    await fetch('/api/sessions', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, team })
-    });
-  } catch(err) {
-    console.error('Server sync error for delete session:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 // ====================================================
@@ -4363,20 +4305,10 @@ async function handleSaveMatch(e) {
     appState.matches[team].push(matchData);
   }
 
-  saveStateToStorage();
   closeModal();
   showNotification(editId ? 'Partido actualizado' : 'Partido añadido al calendario');
   renderView();
-
-  try {
-    await fetch('/api/matches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(matchData)
-    });
-  } catch(err) {
-    console.error('Server sync error for match save:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 async function deleteMatch(id) {
@@ -4396,19 +4328,9 @@ async function deleteMatch(id) {
     appState.matches[team] = appState.matches[team].filter(m => String(m.id) !== String(id));
   }
 
-  saveStateToStorage();
   showNotification('Partido eliminado');
   renderView();
-
-  try {
-    await fetch('/api/matches', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, team })
-    });
-  } catch(err) {
-    console.error('Server sync error for delete match:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 // ====================================================
@@ -4565,20 +4487,10 @@ async function handleSaveVideo(e) {
   if (!appState.videos[team]) appState.videos[team] = [];
   appState.videos[team].push(newVideo);
 
-  saveStateToStorage();
   closeModal();
   showNotification('Vídeo guardado con éxito');
   renderView();
-
-  try {
-    await fetch('/api/videos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newVideo)
-    });
-  } catch(err) {
-    console.error('Server sync error for video save:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 async function deleteVideo(id) {
@@ -4590,19 +4502,9 @@ async function deleteVideo(id) {
     appState.videos[team] = appState.videos[team].filter(v => String(v.id) !== String(id));
   }
 
-  saveStateToStorage();
   showNotification('Vídeo eliminado');
   renderView();
-
-  try {
-    await fetch('/api/videos', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, team })
-    });
-  } catch(err) {
-    console.error('Server sync error for delete video:', err);
-  }
+  await saveStateToStorage(false, true);
 }
 
 function exportData() {
