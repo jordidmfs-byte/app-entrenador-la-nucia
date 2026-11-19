@@ -522,11 +522,26 @@ function getSeasonWeeks() {
   return weeks;
 }
 
-function initWeekSelector() {
+function getCurrentWeekStart() {
   const weeks = getSeasonWeeks();
   const todayStr = formatLocalDate(new Date());
   const found = weeks.find(w => todayStr >= w.start && todayStr <= w.end);
-  selectedWeekStart = found ? found.start : weeks[0].start;
+  return found ? found.start : weeks[0].start;
+}
+
+function initWeekSelector(forceReset = false) {
+  const currentWeek = getCurrentWeekStart();
+  if (forceReset) {
+    selectedWeekStart = currentWeek;
+    return;
+  }
+  const stored = localStorage.getItem('lanucia_selected_week');
+  const weeks = getSeasonWeeks();
+  if (stored && weeks.some(w => w.start === stored)) {
+    selectedWeekStart = stored;
+  } else if (!selectedWeekStart || !weeks.some(w => w.start === selectedWeekStart)) {
+    selectedWeekStart = currentWeek;
+  }
 }
 
 function updateHeaderUI() {
@@ -1151,8 +1166,13 @@ function renderAttendance() {
   const ratings = appState.ratings[team] || {};
 
   const weeks = getSeasonWeeks();
-  if (!selectedWeekStart) selectedWeekStart = weeks[0].start;
-  const currentWeek = weeks.find(w => w.start === selectedWeekStart) || weeks[0];
+  const currentSeasonWeek = getCurrentWeekStart();
+  if (!selectedWeekStart) {
+    initWeekSelector();
+  }
+  const currentWeek = weeks.find(w => w.start === selectedWeekStart) || weeks.find(w => w.start === currentSeasonWeek) || weeks[0];
+  selectedWeekStart = currentWeek.start;
+  const isCurrentWeekSelected = selectedWeekStart === currentSeasonWeek;
 
   // Calculate 7 days for the selected week (Monday to Sunday)
   const daysOfWeek = [];
@@ -1187,18 +1207,30 @@ function renderAttendance() {
         </div>
 
         <!-- Week Selector Form -->
-        <div class="bg-[#1a1a1a]/80 border border-white/8 rounded-xl px-4 py-2.5 flex items-center shadow-lg">
-          <div class="flex flex-col sm:flex-row items-center gap-3">
-            <label for="semana-select" class="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider whitespace-nowrap">Semana Activa:</label>
-            <select id="semana-select" onchange="changeWeek(this.value)"
-                    class="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs font-semibold focus:outline-none focus:border-club-red transition-all min-w-[280px] cursor-pointer">
-              ${weeks.map(w => `
-                <option value="${w.start}" ${w.start === selectedWeekStart ? 'selected' : ''}>
-                  ${w.label}
-                </option>
-              `).join('')}
-            </select>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div class="bg-[#1a1a1a]/80 border border-white/8 rounded-xl px-4 py-2 flex items-center shadow-lg">
+            <div class="flex flex-col sm:flex-row items-center gap-3 w-full">
+              <label for="semana-select" class="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider whitespace-nowrap">Semana Activa:</label>
+              <select id="semana-select" onchange="changeWeek(this.value)"
+                      class="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs font-semibold focus:outline-none focus:border-club-red transition-all min-w-[280px] cursor-pointer">
+                ${weeks.map(w => `
+                  <option value="${w.start}" ${w.start === selectedWeekStart ? 'selected' : ''}>
+                    ${w.label}${w.start === currentSeasonWeek ? ' (En curso)' : ''}
+                  </option>
+                `).join('')}
+              </select>
+            </div>
           </div>
+          ${!isCurrentWeekSelected ? `
+            <button type="button" onclick="resetToCurrentWeek()" title="Volver a la semana actual en curso"
+                    class="px-3 py-2 rounded-xl bg-club-red/15 border border-club-red/30 hover:bg-club-red hover:text-white text-club-red text-xs font-bold uppercase transition-all flex items-center justify-center gap-1.5 whitespace-nowrap shadow-md">
+              <span>📅</span> Semana en curso
+            </button>
+          ` : `
+            <span class="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11px] font-bold uppercase flex items-center justify-center gap-1.5 whitespace-nowrap">
+              <span>●</span> Semana en curso
+            </span>
+          `}
         </div>
       </div>
 
@@ -1319,6 +1351,14 @@ function renderAttendance() {
 
 function changeWeek(weekStart) {
   selectedWeekStart = weekStart;
+  localStorage.setItem('lanucia_selected_week', weekStart);
+  renderView();
+}
+
+function resetToCurrentWeek() {
+  const currentWeek = getCurrentWeekStart();
+  selectedWeekStart = currentWeek;
+  localStorage.setItem('lanucia_selected_week', currentWeek);
   renderView();
 }
 
